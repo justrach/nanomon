@@ -21,11 +21,17 @@ nanomon uses these from [CodeGraff](https://github.com/justrach/codegraff) and
   own program (`graff -p --no-local-tools`). It does not bundle or modify
   graff.
 
-CodeGraff is Copyright (C) 2026 Rach Pradhan and Yu Xi Lim and is distributed
-under its **modified GNU AGPLv3** terms, which are not MIT. The complete notice
-is the CodeGraff
-[`LICENSE`](https://github.com/justrach/codegraff/blob/389b26182fef0b8070d9a976505286d693876b6c/LICENSE)
-(as of `389b261`). Harness is distributed under the same modified AGPLv3
-terms; see its [`LICENSE`](https://github.com/justrach/harness/blob/b0c28b072ce35f5ce8c9a1249435ff404b6ffc97/LICENSE) (as of `b0c28b0`).
-Your use of graff itself is governed by CodeGraff's license, not by nanomon's.
-The MIT license on nanomon does not extend to CodeGraff or Harness.
+These parts are derived from CodeGraff and come under the license CodeGraff
+ships with: CodeGraff's **modified GNU AGPLv3**, Copyright (C) 2026 Rach
+Pradhan and Yu Xi Lim. That license, not MIT, stays their license. It is kept
+here as the original, verbatim, in
+[`third_party/licenses/CodeGraff-LICENSE.txt`](third_party/licenses/CodeGraff-LICENSE.txt)
+(from CodeGraff
+[`389b261`](https://github.com/justrach/codegraff/blob/389b26182fef0b8070d9a976505286d693876b6c/LICENSE)).
+Harness is distributed under the same modified AGPLv3 terms.
+
+The graff features work only with graff, which you install separately under
+that license. Without graff installed, the bubble says graff isn't installed; the rest of nanomon works as usual.
+
+nanomon's MIT license covers nanomon's own code. It does not extend to CodeGraff,
+Harness or graff.
