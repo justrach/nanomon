@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="#download">Download</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="#pages">Pages</a> ·
   <a href="#what-it-reads">What it reads</a> ·
@@ -28,6 +29,16 @@ nanomon shows every process, the machine's CPU, memory, GPU, disk and network
 over the last minute to hour, and what each app is using. It works out of the
 box: no helper, no daemon, no admin rights. Its colors are amber, rust, sage,
 slate and violet on warm charcoal or cream, set in Geist and JetBrains Mono.
+
+## Download
+
+**macOS** (Apple silicon, macOS 13+):
+[download nanomon](https://github.com/justrach/nanomon/releases/latest/download/nanomon-macos-arm64.dmg),
+open the disk image, and drag nanomon to Applications. Each
+[release](https://github.com/justrach/nanomon/releases) lists the image's
+SHA-256. Releases are built by
+[`.github/workflows/release.yml`](.github/workflows/release.yml), and
+`sh macos/package.sh` builds the same disk image locally.
 
 ## Get started
 

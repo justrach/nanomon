@@ -1,0 +1,98 @@
+# Builds nanomon for macOS (Apple silicon) and attaches the disk image to the
+# GitHub release of the tag that was pushed.
+#
+# Signing and notarization use these repository secrets, the same names as
+# Harness's. With all five, the app and image are signed with a Developer ID
+# and notarized; without them, they are signed ad hoc (Gatekeeper asks once).
+#   MACOS_CERT_P12       base64 of a "Developer ID Application" .p12
+#   MACOS_CERT_PASSWORD  its password
+#   AC_API_KEY_P8        an App Store Connect API key (the .p8's contents)
+#   AC_API_KEY_ID        its key id
+#   AC_API_ISSUER_ID     its issuer id
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+      AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+      AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+
+      - name: Signing identity
+        if: env.MACOS_CERT_P12 != ''
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          pass="$(uuidgen)"
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          # Let codesign use the key without a prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$pass" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          identity="$(security find-identity -v -p codesigning "$keychain" \
+            | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+          test -n "$identity"
+          echo "CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Notary credentials
+        if: env.MACOS_CERT_P12 != '' && env.AC_API_KEY_P8 != ''
+        run: |
+          printf '%s' "$AC_API_KEY_P8" > "$RUNNER_TEMP/ac_api_key.p8"
+          {
+            echo "NOTARY_KEY_PATH=$RUNNER_TEMP/ac_api_key.p8"
+            echo "NOTARY_KEY_ID=$AC_API_KEY_ID"
+            echo "NOTARY_ISSUER_ID=$AC_API_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+
+      - name: Package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          case "$GITHUB_REF" in refs/tags/*) ;; *) version="0.0.0-${GITHUB_SHA::7}" ;; esac
+          VERSION="$version" sh macos/package.sh
+
+      - name: Check
+        run: |
+          codesign --verify --strict --verbose=2 zig-out/package/nanomon.app
+          hdiutil verify zig-out/package/nanomon-macos-arm64.dmg
+          if [ -n "${NOTARY_KEY_PATH:-}" ]; then
+            xcrun stapler validate zig-out/package/nanomon.app
+            xcrun stapler validate zig-out/package/nanomon-macos-arm64.dmg
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanomon-macos-arm64
+          path: |
+            zig-out/package/nanomon-macos-arm64.dmg
+            zig-out/package/nanomon-macos-arm64.dmg.sha256
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
+          gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 --clobber
