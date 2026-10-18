@@ -5,8 +5,9 @@
 #
 # Signs with $CODESIGN_IDENTITY (a "Developer ID Application" identity in
 # the keychain) when it is set, else ad hoc. Notarizes and staples the app
-# and the disk image when NOTARY_KEY_PATH, NOTARY_KEY_ID and NOTARY_ISSUER_ID
-# (an App Store Connect API key) are set too.
+# and the disk image when it is set and either NOTARY_PROFILE (a profile
+# saved with `xcrun notarytool store-credentials`) or NOTARY_KEY_PATH,
+# NOTARY_KEY_ID and NOTARY_ISSUER_ID (an App Store Connect API key) are set.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -52,14 +53,21 @@ sign() {
   fi
 }
 
+notarizing() {
+  [ -n "${CODESIGN_IDENTITY:-}" ] && { [ -n "${NOTARY_PROFILE:-}" ] || [ -n "${NOTARY_KEY_PATH:-}" ]; }
+}
+
 notarize() {
-  [ -n "${CODESIGN_IDENTITY:-}" ] && [ -n "${NOTARY_KEY_PATH:-}" ] || return 0
-  xcrun notarytool submit "$1" --key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" \
-    --issuer "$NOTARY_ISSUER_ID" --wait
+  if [ -n "${NOTARY_PROFILE:-}" ]; then
+    xcrun notarytool submit "$1" --keychain-profile "$NOTARY_PROFILE" --wait
+  else
+    xcrun notarytool submit "$1" --key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" \
+      --issuer "$NOTARY_ISSUER_ID" --wait
+  fi
 }
 
 sign "$bundle"
-if [ -n "${NOTARY_KEY_PATH:-}" ] && [ -n "${CODESIGN_IDENTITY:-}" ]; then
+if notarizing; then
   ditto -c -k --keepParent "$bundle" "$out/$app.zip"
   notarize "$out/$app.zip"
   xcrun stapler staple "$bundle"
@@ -74,7 +82,7 @@ ln -s /Applications "$stage/Applications"
 hdiutil create -quiet -volname "$app" -srcfolder "$stage" -fs HFS+ -format UDZO -ov "$dmg"
 rm -rf "$stage"
 sign "$dmg"
-if [ -n "${NOTARY_KEY_PATH:-}" ] && [ -n "${CODESIGN_IDENTITY:-}" ]; then
+if notarizing; then
   notarize "$dmg"
   xcrun stapler staple "$dmg"
 fi

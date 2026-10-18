@@ -94,5 +94,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
+          # An unsigned build never replaces an image already on the release
+          # (one signed and notarized elsewhere).
+          if [ -z "${CODESIGN_IDENTITY:-}" ] && gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "nanomon-macos-arm64.dmg"; then
+            echo "The release already has nanomon-macos-arm64.dmg; keeping it."
+            exit 0
+          fi
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
           gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 --clobber
