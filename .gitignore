@@ -5,3 +5,4 @@ zig-out/
 .claude/
 codedb.snapshot
 .DS_Store
+zig-pkg/
