@@ -4,7 +4,10 @@
     .fingerprint = 0xc86a790451c16db9,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
-        .nanoui = .{ .path = "../.." },
+        .nanoui = .{
+            .url = "git+https://github.com/justrach/nanoui#6a96329449755f008c97b9566bf72fd02c6856b3",
+            .hash = "nanoui-0.1.0-we0KMaUtCQBUtN_DZRpssTmMshBrPmarvXIgCWh7DHX9",
+        },
     },
     .paths = .{ "build.zig", "build.zig.zon", "src" },
 }

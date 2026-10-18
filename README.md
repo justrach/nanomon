@@ -31,16 +31,27 @@ slate and violet on warm charcoal or cream, set in Geist and JetBrains Mono.
 
 ## Get started
 
-nanomon builds inside nanoui, where it lives as a submodule:
+nanomon builds on its own. It fetches nanoui, pinned by commit in
+`build.zig.zon`:
 
 ```sh
-git clone --recursive https://github.com/justrach/nanoui
-cd nanoui/apps/nanomon
+git clone https://github.com/justrach/nanomon
+cd nanomon
 zig build run
 zig build test        # the model, ps's answers, the table, every page through ui.Tester, real samples
 ```
 
 The tests write a picture of every page to `/tmp/nanomon-*.png`.
+
+Working on nanoui at the same time? In a `--recursive` clone of
+[nanoui](https://github.com/justrach/nanoui), nanomon lives under `apps/`.
+Build it there against the nanoui next to it, with your changes, using
+`--fork`:
+
+```sh
+cd nanoui/apps/nanomon
+zig build run --fork=../..
+```
 
 ## Pages
 
