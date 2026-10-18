@@ -13,6 +13,7 @@
   <img alt="One binary, under 1 MB" src="https://img.shields.io/badge/one%20binary-%3C1%20MB-44cc11">
   <img alt="No admin rights" src="https://img.shields.io/badge/admin%20rights-none-44cc11">
   <img alt="Built in Zig 0.17" src="https://img.shields.io/badge/built%20in-Zig%200.17-f7a41d?logo=zig&logoColor=white">
+  <img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
 <p align="center">
@@ -185,6 +186,13 @@ src/theme.zig         the colors, light and dark
 src/tests.zig         tests
 ```
 
+## License
+
+nanomon is licensed under the [MIT License](LICENSE). It uses CodeGraff's colors
+and runs graff, which are under CodeGraff's **modified AGPLv3**, an external
+license that MIT doesn't extend to; see
+[third-party notices](THIRD_PARTY_NOTICES.md).
+
 ## Credits
 
 - **[nanoui](https://github.com/justrach/nanoui):** windows, layout, text, the
@@ -204,4 +212,4 @@ src/tests.zig         tests
 - **[Harness](https://github.com/justrach/harness):** the Codegraff colors,
   and [graff](https://github.com/justrach/codegraff), the agent in the bubble.
 
-<p align="center"><sub>Built in Zig 0.17 on <a href="https://github.com/justrach/nanoui">nanoui</a> · private for now</sub></p>
+<p align="center"><sub>Built in Zig 0.17 on <a href="https://github.com/justrach/nanoui">nanoui</a> · <a href="LICENSE">MIT</a> · <a href="THIRD_PARTY_NOTICES.md">third-party notices</a></sub></p>
