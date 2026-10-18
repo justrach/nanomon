@@ -1,0 +1,10 @@
+.{
+    .name = .nanomon,
+    .version = "0.1.0",
+    .fingerprint = 0xc86a790451c16db9,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        .nanoui = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}

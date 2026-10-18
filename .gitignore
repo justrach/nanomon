@@ -1,0 +1,7 @@
+.zig-cache/
+zig-out/
+.graff/
+.harness/
+.claude/
+codedb.snapshot
+.DS_Store
