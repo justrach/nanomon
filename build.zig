@@ -19,6 +19,16 @@ pub fn build(b: *std.Build) void {
     run.addPassthruArgs();
     b.step("run", "Run nanomon").dependOn(&run.step);
 
+    // A video of nanoui, rendered offscreen (src/video.zig).
+    const video = b.addExecutable(.{ .name = "nanomon-video", .root_module = b.createModule(.{
+        .root_source_file = b.path("src/video.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "nanoui", .module = nanoui }},
+    }) });
+    if (mac) video.root_module.linkFramework("IOKit", .{});
+    b.step("video", "Build zig-out/bin/nanomon-video").dependOn(&b.addInstallArtifact(video, .{}).step);
+
     const tests = b.addTest(.{ .root_module = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),
         .target = target,

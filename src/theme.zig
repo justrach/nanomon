@@ -136,6 +136,8 @@ pub fn ui(dark: bool) nanoui.ui.Theme {
     t.muted = k.secondary;
     t.border = k.border;
     t.accent = k.accent;
+    // Deeper amber under the pointer, not the default theme's blue.
+    t.accent_hover = k.accent.mix(if (dark) white else black, 0.14);
     t.accent_text = k.on_picked;
     t.track = k.control;
     t.danger = k.red;
