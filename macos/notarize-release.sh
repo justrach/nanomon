@@ -37,16 +37,38 @@ notarize() {
   python3 -c 'import json; assert json.load(open("notary-result.json"))["status"] == "Accepted", "Apple rejected the submission"'
 }
 
+staple() {
+  attempt=1
+  while :; do
+    if xcrun stapler staple "$1" > staple-result.txt 2>&1; then
+      xcrun stapler validate "$1" >/dev/null
+      return
+    else
+      status=$?
+    fi
+    # Accepted tickets can take a little longer to reach Apple's CDN.
+    if [ "$status" -ne 68 ] || [ "$attempt" -ge 4 ]; then
+      echo "Ticket stapling failed (exit $status)." >&2
+      exit "$status"
+    fi
+    echo 'Waiting for the accepted notarization ticket to become available.'
+    sleep 10
+    attempt=$((attempt + 1))
+  done
+}
+
+echo 'Notarizing the app update.'
 notarize "$zip"
-xcrun stapler staple "$bundle" >/dev/null
-xcrun stapler validate "$bundle" >/dev/null
+echo 'Stapling the app ticket.'
+staple "$bundle"
 # The update zip carries the stapled app. The disk image has its own ticket,
 # which covers the signed app inside it too.
 rm "$zip"
 ditto -c -k --keepParent "$bundle" "$zip"
+echo 'Notarizing the disk image.'
 notarize "$dmg"
-xcrun stapler staple "$dmg" >/dev/null
-xcrun stapler validate "$dmg" >/dev/null
+echo 'Stapling the disk image ticket.'
+staple "$dmg"
 hdiutil verify "$dmg" >/dev/null
 spctl --assess --type execute "$bundle"
 
