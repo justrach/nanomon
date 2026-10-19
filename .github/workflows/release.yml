@@ -16,12 +16,32 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      check_release:
+        description: "Check an existing release's bundle on Sequoia instead of packaging"
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
 jobs:
+  check-release:
+    if: inputs.check_release != ''
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check released bundle through LaunchServices
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.check_release }}
+        run: |
+          gh release download "$RELEASE_TAG" --pattern nanomon-macos-arm64.zip --dir "$RUNNER_TEMP/bundle"
+          ditto -x -k "$RUNNER_TEMP/bundle/nanomon-macos-arm64.zip" "$RUNNER_TEMP/bundle"
+          python3 macos/check-launch.py "$RUNNER_TEMP/bundle/nanomon.app"
+
   macos:
+    if: inputs.check_release == ''
     runs-on: macos-15
     env:
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
@@ -77,6 +97,7 @@ jobs:
         run: |
           codesign --verify --strict --verbose=2 zig-out/package/nanomon.app
           hdiutil verify zig-out/package/nanomon-macos-arm64.dmg
+          python3 macos/check-launch.py zig-out/package/nanomon.app
           if [ -n "${NOTARY_KEY_PATH:-}" ]; then
             xcrun stapler validate zig-out/package/nanomon.app
             xcrun stapler validate zig-out/package/nanomon-macos-arm64.dmg
