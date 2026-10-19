@@ -21,7 +21,15 @@ bundle="$out/$app.app"
 dmg="$out/$app-macos-arm64.dmg"
 zip="$out/$app-macos-arm64.zip"
 
-zig build -Doptimize=ReleaseFast ${ZIG_FLAGS:-}
+# For macOS 13 and Apple silicon from the M1 on: a native build would
+# need the macOS and the CPU it was built on.
+min_macos=13.0
+zig build -Doptimize=ReleaseFast -Dtarget=aarch64-macos.$min_macos -Dcpu=apple_m1 ${ZIG_FLAGS:-}
+if ! vtool -show-build "zig-out/bin/$app" | grep -q "minos $min_macos\$"; then
+  echo "zig-out/bin/$app is not built for macOS $min_macos:" >&2
+  vtool -show-build "zig-out/bin/$app" >&2
+  exit 1
+fi
 rm -rf "$out"
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
 cp "zig-out/bin/$app" "$bundle/Contents/MacOS/$app"
@@ -41,7 +49,7 @@ cat > "$bundle/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$version</string>
   <key>CFBundleGetInfoString</key><string>A small, smooth activity monitor</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
-  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSMinimumSystemVersion</key><string>$min_macos</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
