@@ -78,6 +78,9 @@ notarize() {
 }
 
 sign "$bundle"
+# Finder uses LaunchServices, not the command-line executable. Exercise
+# that path and render a frame offscreen before distributing the bundle.
+python3 macos/check-launch.py "$bundle"
 if notarizing; then
   ditto -c -k --keepParent "$bundle" "$out/$app.zip"
   notarize "$out/$app.zip"

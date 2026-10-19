@@ -16,7 +16,9 @@ def check(bundle):
             cwd="/", capture_output=True, text=True, timeout=60,
         )
         if result.returncode != 0:
-            raise RuntimeError("LaunchServices rejected the app (exit %d)" % result.returncode)
+            detail = result.stderr.replace(str(bundle), "<bundle>").strip()
+            raise RuntimeError("LaunchServices rejected the app (exit %d): %s" %
+                               (result.returncode, detail))
         # open can succeed even if the app crashes immediately afterwards.
         if not snapshot.is_file() or snapshot.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError("The app did not render its first frame")

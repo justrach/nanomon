@@ -21,6 +21,10 @@ on:
         description: "Check an existing release's bundle on Sequoia instead of packaging"
         required: false
         default: ""
+      notarize_release:
+        description: "Notarize signed assets on an existing draft release"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -40,8 +44,22 @@ jobs:
           ditto -x -k "$RUNNER_TEMP/bundle/nanomon-macos-arm64.zip" "$RUNNER_TEMP/bundle"
           python3 macos/check-launch.py "$RUNNER_TEMP/bundle/nanomon.app"
 
+  notarize-release:
+    if: inputs.notarize_release != ''
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Notarize locally signed draft assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.notarize_release }}
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+        run: sh macos/notarize-release.sh "$RELEASE_TAG"
+
   macos:
-    if: inputs.check_release == ''
+    if: inputs.check_release == '' && inputs.notarize_release == ''
     runs-on: macos-15
     env:
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
@@ -97,7 +115,6 @@ jobs:
         run: |
           codesign --verify --strict --verbose=2 zig-out/package/nanomon.app
           hdiutil verify zig-out/package/nanomon-macos-arm64.dmg
-          python3 macos/check-launch.py zig-out/package/nanomon.app
           if [ -n "${NOTARY_KEY_PATH:-}" ]; then
             xcrun stapler validate zig-out/package/nanomon.app
             xcrun stapler validate zig-out/package/nanomon-macos-arm64.dmg
