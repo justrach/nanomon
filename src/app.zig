@@ -146,6 +146,9 @@ pub const App = struct {
     window: ?*nanoui.Window = null,
     /// ps has answered since the last frame.
     fresh: bool = false,
+    /// Updates from the releases, and the app to quit to install one.
+    updater: ?*nanoui.Updater = null,
+    nanoapp: ?*nanoui.App = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io) App {
         const uid: u32 = if (comptime builtin.os.tag != .windows) getuid() else 0;
@@ -159,7 +162,8 @@ pub const App = struct {
         a.graff.notify = .{ .ctx = a, .func = graffAnswered };
     }
 
-    fn graffAnswered(ctx: *anyopaque) void {
+    /// Draws again: an answer came, or an update is ready.
+    pub fn graffAnswered(ctx: *anyopaque) void {
         const a: *App = @ptrCast(@alignCast(ctx));
         if (a.window) |w| w.redraw();
     }

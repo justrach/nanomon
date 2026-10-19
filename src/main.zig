@@ -24,5 +24,13 @@ pub fn main(init: std.process.Init) !void {
         .content = .{ .view = .init(&a, view.view) },
     });
     a.listen(window);
+    a.nanoapp = app;
+    a.updater = try nanoui.Updater.start(init, .{
+        .repo = "justrach/nanomon",
+        .asset = "nanomon-macos-arm64.zip",
+        .name = "nanomon",
+        .changed = .{ .ctx = &a, .func = App.graffAnswered },
+    });
+    defer a.updater.?.deinit();
     try app.run();
 }

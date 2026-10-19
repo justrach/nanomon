@@ -1,4 +1,5 @@
-# Builds nanomon for macOS (Apple silicon) and attaches the disk image to the
+# Builds nanomon for macOS (Apple silicon) and attaches the disk image, and
+# the update its updater reads (the zipped app and manifest.json), to the
 # GitHub release of the tag that was pushed.
 #
 # Signing and notarization use these repository secrets, the same names as
@@ -87,6 +88,8 @@ jobs:
           path: |
             zig-out/package/nanomon-macos-arm64.dmg
             zig-out/package/nanomon-macos-arm64.dmg.sha256
+            zig-out/package/nanomon-macos-arm64.zip
+            zig-out/package/manifest.json
 
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/')
@@ -95,10 +98,11 @@ jobs:
         run: |
           tag="$GITHUB_REF_NAME"
           # An unsigned build never replaces an image already on the release
-          # (one signed and notarized elsewhere).
+          # (one signed and notarized elsewhere), nor the update beside it.
           if [ -z "${CODESIGN_IDENTITY:-}" ] && gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "nanomon-macos-arm64.dmg"; then
             echo "The release already has nanomon-macos-arm64.dmg; keeping it."
             exit 0
           fi
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
-          gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 --clobber
+          gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 \
+            zig-out/package/nanomon-macos-arm64.zip zig-out/package/manifest.json --clobber

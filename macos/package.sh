@@ -1,5 +1,7 @@
 #!/bin/sh
-# Builds nanomon.app and nanomon-macos-arm64.dmg in zig-out/package.
+# Builds nanomon.app and nanomon-macos-arm64.dmg in zig-out/package, and the
+# update the app's updater reads from the release: nanomon-macos-arm64.zip and
+# manifest.json (its version and the zip's sha256).
 #
 #   VERSION=0.1.0 sh macos/package.sh
 #
@@ -17,6 +19,7 @@ version="${version#v}"
 out=zig-out/package
 bundle="$out/$app.app"
 dmg="$out/$app-macos-arm64.dmg"
+zip="$out/$app-macos-arm64.zip"
 
 zig build -Doptimize=ReleaseFast ${ZIG_FLAGS:-}
 rm -rf "$out"
@@ -87,3 +90,8 @@ if notarizing; then
   xcrun stapler staple "$dmg"
 fi
 shasum -a 256 "$dmg" | tee "$dmg.sha256"
+
+# The update: the (stapled) app zipped, and the manifest naming it.
+ditto -c -k --keepParent "$bundle" "$zip"
+sum="$(shasum -a 256 "$zip" | cut -d' ' -f1)"
+printf '{"version":"%s","files":{"%s":{"sha256":"%s"}}}\n' "$version" "$(basename "$zip")" "$sum" > "$out/manifest.json"

@@ -40,7 +40,23 @@ pub fn sidebar(c: *ui.Context, a: *App, k: theme.Colors) void {
     item(c, a, k, .{ .page = .apps, .icon = "square.grid.3x3", .name = "Apps" }, k.purple, c.print("{d}", .{a.apps.items.len}));
     item(c, a, k, .{ .page = .about, .icon = "desktopcomputer", .name = "About This Mac" }, k.gray, "");
     ui.spacer(c);
+    update(c, a, k);
     status(c, a, k);
+}
+
+/// A newer nanomon, downloaded and checked: restart into it.
+fn update(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const u = a.updater orelse return;
+    const version = u.ready() orelse return;
+    const on = c.theme.accent_text;
+    ui.key(c, "update");
+    const d = ui.div(c).row().wFull().h(30).itemsCenter().gap(8).px(8).rounded(7).bg(k.accent).hover(c.theme.accent_hover).control();
+    defer d.end();
+    if (d.clicked()) if (u.restart()) if (a.nanoapp) |app| app.quit();
+    ui.icon(c, "arrow.down.circle.fill", .{ .size = 13, .color = on });
+    ui.text(c, "Restart to update", .{ .size = 12, .weight = .semibold, .color = on });
+    ui.spacer(c);
+    ui.text(c, version, .{ .size = 11, .mono = true, .color = on.alpha(0.8) });
 }
 
 fn section(c: *ui.Context, k: theme.Colors, name: []const u8) void {

@@ -158,3 +158,28 @@ test "the graff bubble asks graff, shows its answer, and marks only what may be 
     try std.testing.expect(a.marked.contains(990003) and a.marked.count() == 1);
     try std.testing.expectEqual(app_mod.Page.processes, a.page);
 }
+
+test "a ready update shows in the sidebar; one that can't install keeps nanomon running" {
+    const gpa = std.testing.allocator;
+    var a: App = .init(gpa, std.testing.io);
+    defer a.deinit();
+    try t_mod.fake(&a);
+    // An updater that found nothing, in a build that isn't a bundle.
+    var u: nanoui.Updater = .{ .gpa = gpa, .io = std.testing.io, .options = .{ .repo = "justrach/nanomon", .asset = "nanomon-macos-arm64.zip", .name = "nanomon" } };
+    a.updater = &u;
+    var t: ui.Tester = undefined;
+    try t.init(gpa, .init(&a, view.view), .{ .width = 1100, .height = 760, .theme = theme.ui(false) });
+    defer t.deinit();
+    t.settle(1);
+    try std.testing.expect(!t.hasText("Restart to update"));
+    u.version_buf[0..5].* = "9.9.9".*;
+    u.version_len = 5;
+    u.phase.store(.ready, .release);
+    t.settle(1);
+    try std.testing.expect(t.hasText("Restart to update") and t.hasText("9.9.9"));
+    // Nothing is staged here, so it can't install: nothing quits.
+    const r = t.findText("Restart to update").?;
+    t.click(r.x + 4, r.y + r.h / 2);
+    t.settle(1);
+    try std.testing.expectEqual(nanoui.update.Phase.ready, u.phase.load(.acquire));
+}
