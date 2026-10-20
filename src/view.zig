@@ -28,7 +28,7 @@ pub fn view(a: *App, c: *ui.Context) void {
     c.theme = theme.ui(dark);
     const k = theme.colors(dark);
     // The next sample, and only then, unless something animates.
-    c.frameIn(a.tick(c.time));
+    c.frameIn(a.tick(if (a.clock) |f| f() else c.time));
     a.icons.frame();
     // The headers' empty space moves the window, as a title bar's does.
     c.title_bar_height = kit.header_h;

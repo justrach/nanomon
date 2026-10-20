@@ -100,6 +100,22 @@ zig build run --fork=../..
 Graphs span 1 minute to 1 hour, and you can pause them. Hover a graph to read
 the values in any column.
 
+### In the menu bar
+
+On macOS nanomon also sits in the menu bar, beside the clock. It shows CPU,
+memory, the network's rates and the chip's temperature, in the menu bar's
+own color. Click it to open a panel with:
+
+- the CPU now, over its last minute in dots
+- user, system, and how hot it runs
+- every core as a ring, frugal and fast cores apart
+- the five busiest processes
+- the GPU's load, memory, temperature and renderer as dials
+- load averages and uptime
+
+Open nanomon brings up the window. The gear chooses what the menu bar shows
+and quits nanomon. Closing the window leaves nanomon running in the menu bar.
+
 ## What it reads
 
 Activity Monitor gets its figures from a private system daemon (sysmond,
@@ -131,6 +147,9 @@ interfaces:
   - **Load averages:** `getloadavg`.
   - **Every task and thread:** the default processor set's statistics.
   - **Thermal state:** NSProcessInfo.
+  - **Temperatures:** the chip's sensors as IOKit's HID event system lists
+    them. These are the CPU dies, the GPU's where the chip names them, and
+    the rest of the SoC. They need no admin rights.
   - **The GPU:** its accelerator's statistics in IOKit.
   - **The network:** each interface's 64-bit counters from its MIB data. The
     routing socket gives only 32 bits to anyone but root.
@@ -177,7 +196,9 @@ Apple's private interfaces.
 ## Files
 
 ```
-src/main.zig          the window
+src/main.zig          the window and the menu bar
+src/menubar.zig       the menu bar readout (a template image) and its panel (macOS)
+src/view_popover.zig  the panel under the menu bar
 src/app.zig           state: sampling, order, search, selection, quitting
 src/model.zig         processes, the system, sorting, formatting
 src/sample.zig        a sample: CPU percentages, history, names, users
@@ -188,6 +209,7 @@ src/sample_linux.zig  /proc
 src/sample_none.zig   elsewhere
 src/sample_sys_mac.zig   chip, cores, load, uptime, threads, thermal, network
 src/sample_iokit_mac.zig the disks and the GPU, from IOKit
+src/sample_temp_mac.zig  temperatures, from IOKit's HID sensors
 src/sample_sys_linux.zig the same from /proc
 src/view.zig          the window: sidebar, page, sheets, keys
 src/view_side.zig     the sidebar
@@ -206,6 +228,7 @@ src/graff.zig         running graff one-shot, reading its answer
 src/tests_select.zig  marking, quitting together, the bubble (a fake graff)
 src/theme.zig         the colors, light and dark
 src/tests.zig         tests
+src/tests_menubar.zig the panel and the readout
 ```
 
 ## License

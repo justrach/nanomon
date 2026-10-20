@@ -17,8 +17,10 @@ test {
     _ = @import("sample.zig");
     _ = @import("app.zig");
     if (builtin.os.tag == .macos) _ = @import("ps.zig");
+    if (builtin.os.tag == .macos) _ = @import("sample_temp_mac.zig");
     _ = @import("graff.zig");
     _ = @import("tests_select.zig");
+    _ = @import("tests_menubar.zig");
 }
 
 extern "c" fn getpid() c_int;

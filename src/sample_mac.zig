@@ -117,6 +117,7 @@ pub const State = struct {
     mem_total: u64 = 0,
     cores: u32 = 1,
     reg: iokit.Registry = .{},
+    sensors: @import("sample_temp_mac.zig").Sensors = .{},
     text: sys.Text = .{},
     /// What the machine is has been read.
     known_machine: bool = false,
@@ -126,6 +127,7 @@ pub fn deinit(s: *Sampler) void {
     if (s.state.pids.len > 0) s.gpa.free(s.state.pids);
     s.state.ps.deinit(s.gpa);
     s.state.reg.deinit();
+    s.state.sensors.deinit();
 }
 
 const Namer = struct {
@@ -193,6 +195,11 @@ pub fn collect(s: *Sampler) sample.Ticks {
         sys.machine(s, &st.text, &st.reg);
     }
     sys.extras(s, &st.text, &st.reg);
+    const t = st.sensors.read();
+    s.system.cpu_temp = t.cpu;
+    s.system.cpu_temp_max = t.cpu_max;
+    s.system.gpu_temp = t.gpu;
+    s.system.soc_temp = t.soc;
     return ticks(s);
 }
 

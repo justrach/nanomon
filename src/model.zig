@@ -79,6 +79,12 @@ pub const System = struct {
     threads: u32 = 0,
     /// How hot the machine runs: 0 nominal, 1 fair, 2 serious, 3 critical.
     thermal: u8 = 0,
+    /// Degrees Celsius (0: not known): the CPU's mean and its hottest, the
+    /// GPU's, and the rest of the chip's.
+    cpu_temp: f32 = 0,
+    cpu_temp_max: f32 = 0,
+    gpu_temp: f32 = 0,
+    soc_temp: f32 = 0,
 
     pub fn cpuBusy(s: System) f32 {
         return s.cpu_user + s.cpu_system;

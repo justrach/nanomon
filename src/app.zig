@@ -149,6 +149,14 @@ pub const App = struct {
     /// Updates from the releases, and the app to quit to install one.
     updater: ?*nanoui.Updater = null,
     nanoapp: ?*nanoui.App = null,
+    /// The menu bar's readout and panel (macOS), what it shows, and whether
+    /// the panel shows its settings.
+    menubar: ?*@import("menubar.zig").MenuBar = null,
+    bar_items: @import("menubar.zig").Items = .{},
+    settings_open: bool = false,
+    /// The clock samples go by when several views share them (the window
+    /// and the panel each have their own frame clock); tests leave it null.
+    clock: ?*const fn () f64 = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io) App {
         const uid: u32 = if (comptime builtin.os.tag != .windows) getuid() else 0;
@@ -162,6 +170,37 @@ pub const App = struct {
         a.graff.notify = .{ .ctx = a, .func = graffAnswered };
     }
 
+    /// Opens the window (again, once closed: nanomon stays in the menu bar).
+    pub fn openWindow(a: *App) void {
+        if (a.menubar) |m| m.hidePopover();
+        if (a.window) |w| return w.focus();
+        const app = a.nanoapp orelse return;
+        const theme = @import("theme.zig");
+        a.window = app.newWindow(.{
+            .title = "nanomon",
+            .width = 1020,
+            .height = 660,
+            .min_width = 720,
+            .min_height = 420,
+            // The toolbar is the title bar, as Activity Monitor's.
+            .title_bar = .hidden,
+            .theme = theme.ui(nanoui.isDark()),
+            .content = .{ .view = .init(a, @import("view.zig").view) },
+            .on_close = .{ .ctx = a, .func = windowClosed },
+        }) catch return;
+        a.window.?.focus();
+    }
+
+    fn windowClosed(ctx: *anyopaque, _: *nanoui.Window) void {
+        const a: *App = @ptrCast(@alignCast(ctx));
+        a.window = null;
+    }
+
+    /// The menu bar panel's height for what it shows.
+    pub fn popoverHeight(a: *App) f64 {
+        return @import("view_popover.zig").height(a);
+    }
+
     /// Draws again: an answer came, or an update is ready.
     pub fn graffAnswered(ctx: *anyopaque) void {
         const a: *App = @ptrCast(@alignCast(ctx));
@@ -172,6 +211,7 @@ pub const App = struct {
         const a: *App = @ptrCast(@alignCast(ctx));
         a.fresh = true;
         if (a.window) |w| w.redraw();
+        if (a.menubar) |m| if (m.popover) |p| if (p.isVisible()) p.redraw();
     }
 
     pub fn deinit(a: *App) void {
