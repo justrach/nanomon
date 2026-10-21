@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .nanoui = .{
-            .url = "git+https://github.com/justrach/nanoui#fa6a4466442f015031901b4c877774b7ba0a1e59",
-            .hash = "nanoui-0.6.3-we0KMX_pEACtUUamGQRe1ofPzQe1H8WEBwdzfB-9UaTj",
+            .url = "git+https://github.com/justrach/nanoui#f34d980944843a7c3054698d304ba22a5041fc42",
+            .hash = "nanoui-0.6.4-we0KMR_xEAAZx0rueM5FILCpIetrME29nqyxkVPljuOm",
         },
     },
     .paths = .{ "build.zig", "build.zig.zon", "src" },
