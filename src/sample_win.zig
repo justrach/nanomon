@@ -18,6 +18,7 @@ const WCHAR = u16;
 const system_performance_information = 2;
 const system_process_information = 5;
 const system_processor_performance_information = 8;
+const system_page_file_information = 18;
 
 const status_info_length_mismatch: i32 = @bitCast(@as(u32, 0xC0000004));
 
@@ -121,6 +122,15 @@ const PerfInfo = extern struct {
     PeakCommitment: DWORD,
 };
 
+/// SYSTEM_PAGEFILE_INFORMATION: one page file, its size and use in pages.
+const PageFileInfo = extern struct {
+    NextEntryOffset: u32,
+    TotalSize: u32,
+    TotalInUse: u32,
+    PeakUsage: u32,
+    PageFileName: UnicodeString,
+};
+
 /// PERFORMANCE_INFORMATION, from psapi: memory by kind, tasks and threads.
 const PerformanceInfo = extern struct {
     cb: DWORD,
@@ -163,19 +173,32 @@ comptime {
     if (@sizeOf(usize) == 8) {
         if (@sizeOf(ProcessInfo) != 256) @compileError("SYSTEM_PROCESS_INFORMATION's layout");
         if (@sizeOf(ProcessorInfo) != 48) @compileError("SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION's layout");
+        if (@sizeOf(PageFileInfo) != 32) @compileError("SYSTEM_PAGEFILE_INFORMATION's layout");
         if (@sizeOf(PerformanceInfo) != 104) @compileError("PERFORMANCE_INFORMATION's layout");
         if (@sizeOf(MemoryStatus) != 64) @compileError("MEMORYSTATUSEX's layout");
     }
 }
 
-/// The most pids whose owner is remembered.
-const max_users = 65536;
+/// A process's owner, and which process it was: a reused pid is another
+/// process, with an owner of its own.
+const Owner = struct {
+    uid: u32,
+    created: i64,
+    /// The sample it was last seen in: what is not seen goes.
+    gen: u64,
+};
 
 pub const State = struct {
     /// The processes' buffer, grown as the list does.
     buf: []u8 = &.{},
-    /// Each process's owner: the user's id (0 is nanomon's own).
-    uids: std.AutoHashMapUnmanaged(i32, u32) = .empty,
+    /// Each process's owner: the user's id (0 is nanomon's own), which
+    /// process it was, and when it was last seen.
+    uids: std.AutoHashMapUnmanaged(i32, Owner) = .empty,
+    /// The sample owners are marked with.
+    gen: u64 = 0,
+    /// The system's page size: the page file and the paging counters,
+    /// which are in pages, in bytes.
+    page_size: u64 = 4096,
     /// A SID's hash → the user's id, and the next id to give out.
     ids: std.AutoHashMapUnmanaged(u64, u32) = .empty,
     next_user: u32 = 1,
@@ -250,8 +273,9 @@ fn processes(s: *Sampler) void {
         var len: u32 = 0;
         const status = NtQuerySystemInformation(system_process_information, st.buf.ptr, @intCast(st.buf.len), &len);
         if (status == 0) {
+            st.gen +%= 1;
             parse(s, len);
-            if (st.uids.count() > max_users) st.uids.clearRetainingCapacity();
+            forgetGone(st);
             return;
         }
         if (status != status_info_length_mismatch) return;
@@ -285,7 +309,7 @@ fn parse(s: *Sampler, len: u32) void {
         const next = pi.NextEntryOffset;
         if (pid != 0) {
             const ppid: i32 = @bitCast(@as(u32, @truncate(pi.InheritedFromUniqueProcessId)));
-            const uid = userId(st, s, pid);
+            const uid = userId(st, s, pid, pi.CreateTime);
             var path_buf: [1024]u8 = undefined;
             const wide: []const u16 = if (pi.ImageName.Buffer) |b| b[0 .. pi.ImageName.Length / 2] else &.{};
             const n = std.unicode.utf16LeToUtf8(&path_buf, wide) catch 0;
@@ -350,12 +374,14 @@ fn ticks(s: *Sampler) sample.Ticks {
 /// from the closest Windows has: the physical total and what is available,
 /// the system cache and the kernel's own.
 fn memory(s: *Sampler) void {
+    const st = &s.state;
     const sy = &s.system;
     var m: MemoryStatus = .{ .dwLength = @sizeOf(MemoryStatus), .dwMemoryLoad = 0, .ullTotalPhys = 0, .ullAvailPhys = 0, .ullTotalPageFile = 0, .ullAvailPageFile = 0, .ullTotalVirtual = 0, .ullAvailVirtual = 0, .ullAvailExtendedVirtual = 0 };
     _ = GlobalMemoryStatusEx(&m);
     var perf: PerformanceInfo = .{ .cb = @sizeOf(PerformanceInfo), .CommitTotal = 0, .CommitLimit = 0, .CommitPeak = 0, .PhysicalTotal = 0, .PhysicalAvailable = 0, .SystemCache = 0, .KernelTotal = 0, .KernelPaged = 0, .KernelNonpaged = 0, .PageSize = 4096, .HandleCount = 0, .ProcessCount = 0, .ThreadCount = 0 };
     const ok = K32GetPerformanceInfo(&perf, perf.cb) != 0;
     const page: u64 = if (ok and perf.PageSize > 0) perf.PageSize else 4096;
+    st.page_size = page;
     const total: u64 = if (m.ullTotalPhys > 0) m.ullTotalPhys else perf.PhysicalTotal * page;
     const avail: u64 = if (m.ullAvailPhys > 0) m.ullAvailPhys else perf.PhysicalAvailable * page;
     sy.mem_total = total;
@@ -373,14 +399,34 @@ fn memory(s: *Sampler) void {
     // Available memory already counts the cache (standby is free to give up),
     // so what is in use is what is not available.
     sy.mem_app = (total -| avail) -| sy.mem_wired -| sy.mem_compressed;
-    // What is committed beyond what memory holds is in the page file.
-    sy.swap_used = (perf.CommitTotal -| perf.PhysicalTotal) * page;
-    sy.swap_total = perf.CommitLimit * page;
+    // The page files' own counters say how much they are and how much they
+    // hold (the commit limit is neither).
+    pageFiles(s, page);
     if (total > 0) sy.pressure = @floatCast(100 - @as(f64, @floatFromInt(avail)) / @as(f64, @floatFromInt(total)) * 100);
     if (ok) {
         sy.tasks = perf.ProcessCount;
         sy.threads = perf.ThreadCount;
     }
+}
+
+/// The page files' size and what they hold, in bytes.
+fn pageFiles(s: *Sampler, page: u64) void {
+    var buf: [4096]u8 align(8) = undefined;
+    var len: u32 = 0;
+    if (NtQuerySystemInformation(system_page_file_information, &buf, buf.len, &len) != 0) return;
+    var total: u64 = 0;
+    var used: u64 = 0;
+    const end: usize = @min(buf.len, len);
+    var at: usize = 0;
+    while (at + @sizeOf(PageFileInfo) <= end) {
+        const pf: *align(1) const PageFileInfo = @ptrCast(&buf[at]);
+        total += pf.TotalSize;
+        used += @min(pf.TotalInUse, pf.TotalSize);
+        if (pf.NextEntryOffset == 0) break;
+        at += pf.NextEntryOffset;
+    }
+    s.system.swap_total = total * page;
+    s.system.swap_used = used * page;
 }
 
 /// The disks' reads and writes since boot, and their bytes.
@@ -420,16 +466,36 @@ fn tokenSid(h: HANDLE, buf: []align(8) u8) ?Sid {
     return .{ .ptr = bytes, .len = 8 + @as(usize, parts) * 4 };
 }
 
-fn userId(st: *State, s: *Sampler, pid: i32) u32 {
-    if (st.uids.get(pid)) |id| return id;
+/// The owner of process `pid`, started at `created`: the owner of this
+/// process, not of one that had the pid before it.
+fn userId(st: *State, s: *Sampler, pid: i32, created: i64) u32 {
+    if (st.uids.getPtr(pid)) |o| {
+        if (o.created == created) {
+            o.gen = st.gen;
+            return o.uid;
+        }
+    }
     var buf: [256]u8 align(8) = undefined;
     var id: u32 = unknown_user;
     if (OpenProcess(process_query_limited_information, 0, @intCast(pid))) |h| {
         defer _ = CloseHandle(h);
         if (tokenSid(h, &buf)) |sid| id = idOf(st, s, sid);
     }
-    st.uids.put(s.gpa, pid, id) catch {};
+    st.uids.put(s.gpa, pid, .{ .uid = id, .created = created, .gen = st.gen }) catch {};
     return id;
+}
+
+/// Owners of processes that are gone go: their pids are free for others.
+fn forgetGone(st: *State) void {
+    var gone: [64]i32 = undefined;
+    var n: usize = 0;
+    var it = st.uids.iterator();
+    while (it.next()) |e| {
+        if (e.value_ptr.gen == st.gen or n == gone.len) continue;
+        gone[n] = e.key_ptr.*;
+        n += 1;
+    }
+    for (gone[0..n]) |pid| _ = st.uids.remove(pid);
 }
 
 fn idOf(st: *State, s: *Sampler, sid: Sid) u32 {

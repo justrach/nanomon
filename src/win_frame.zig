@@ -10,9 +10,32 @@ const std = @import("std");
 
 /// The width the window's three buttons take, in points.
 pub const caption_w: f32 = 138;
-/// How much of the header's right the page's controls take (the range's
-/// segments and pause); the header left of that drags the window.
-const controls_w: f32 = 210;
+
+const ui = @import("nanoui").ui;
+
+/// The view's context. Its last committed frame says where the header's
+/// controls are; hit tests read it as they come, so what the frame just
+/// painted is what the pointer meets, even when no frame follows for a
+/// while (a paused view).
+var hit_ctx: ?*const ui.Context = null;
+
+/// Where hit tests look for the header's controls: the window's surface's
+/// context.
+pub fn setContext(ctx: *const ui.Context) void {
+    hit_ctx = ctx;
+}
+
+/// Whether the header's point (x, y), in points, is over a control the view
+/// painted. The header's rest drags the window, as a caption would.
+pub fn overControl(x: f32, y: f32) bool {
+    const c = hit_ctx orelse return false;
+    for (c.hits.items) |hit| {
+        const r = hit.rect;
+        if (r.w <= 0 or r.h <= 0 or r.y >= @import("view_kit.zig").header_h) continue;
+        if (x >= r.x and x < r.x + r.w and y >= r.y and y < r.y + r.h) return true;
+    }
+    return false;
+}
 
 const HWND = *anyopaque;
 const WPARAM = usize;
@@ -128,7 +151,6 @@ fn hitTest(h: HWND, lp: LPARAM) ?LRESULT {
     if (GetClientRect(h, &r) == 0) return null;
     const s = scale(h);
     const edge: i32 = @intFromFloat(@max(2, 6 * s));
-    const header: i32 = @intFromFloat(@import("view_kit.zig").header_h * s);
     const left = p.x < edge;
     const right = p.x >= r.right - edge;
     const top = p.y < edge;
@@ -141,9 +163,11 @@ fn hitTest(h: HWND, lp: LPARAM) ?LRESULT {
     if (right) return ht_right;
     if (top) return ht_top;
     if (bottom) return ht_bottom;
-    // The header, less the window's buttons and the page's controls.
-    const taken: i32 = @intFromFloat((caption_w + controls_w) * s);
-    if (p.y < header and p.x < r.right - taken) return ht_caption;
+    // The header drags the window, except where the view put a control:
+    // the window's buttons, the ranges, the page's toolbar.
+    const x = @as(f32, @floatFromInt(p.x)) / s;
+    const y = @as(f32, @floatFromInt(p.y)) / s;
+    if (y < @import("view_kit.zig").header_h and !overControl(x, y)) return ht_caption;
     return null;
 }
 

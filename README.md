@@ -169,8 +169,9 @@ interfaces:
   its token, and the network's bytes from each hardware interface. A process
   whose owner cannot be read without administrator rights goes without a
   user. Windows has no load average: nanomon's is the average number of busy
-  cores over the minute. The page file's size is the commit limit, and the
-  pages read in and written out a second are the Memory performance counters'.
+  cores over the minute. The page files' size and use come from the system's
+  page files, and the bytes of pages read in and written out a second are the
+  Memory performance counters' (pages, times the page size).
   Windows draws no title bar over the window: the page's header is the title
   bar (drag it to move the window, double-click it to maximize), with the
   window's minimize, maximize and close buttons at its right end. The resize

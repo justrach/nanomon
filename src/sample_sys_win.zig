@@ -254,7 +254,7 @@ fn open(s: *Sampler) ?HANDLE {
     if (PdhAddEnglishCounterW(query, L("\\GPU Engine(*)\\Utilization Percentage"), 0, &c) == 0) p.engine = c;
     if (PdhAddEnglishCounterW(query, L("\\GPU Adapter Memory(*)\\Dedicated Usage"), 0, &c) == 0) p.memory = c;
     if (PdhAddEnglishCounterW(query, L("\\Thermal Zone Information(*)\\Temperature"), 0, &c) == 0) p.thermal = c;
-    if (PdhAddEnglishCounterW(query, L("\\Memory\\Page Reads/sec"), 0, &c) == 0) p.pages_in = c;
+    if (PdhAddEnglishCounterW(query, L("\\Memory\\Pages Input/sec"), 0, &c) == 0) p.pages_in = c;
     if (PdhAddEnglishCounterW(query, L("\\Memory\\Pages Output/sec"), 0, &c) == 0) p.pages_out = c;
     return query;
 }
@@ -338,12 +338,20 @@ fn counters(s: *Sampler) void {
     _ = PdhCollectQueryData(query);
     gpu(s);
     thermal(s);
+    // The counters count pages; the page shows bytes, as Activity Monitor's.
+    const bytes_per_page: f32 = @floatFromInt(s.state.page_size);
     if (p.pages_in) |c| {
         const r = read(s, c);
-        if (r.any) s.system.page_ins_sec = @floatCast(@max(0, r.max));
+        if (r.any) {
+            const pages: f32 = @floatCast(@max(0, r.max));
+            s.system.page_ins_sec = pages * bytes_per_page;
+        }
     }
     if (p.pages_out) |c| {
         const r = read(s, c);
-        if (r.any) s.system.page_outs_sec = @floatCast(@max(0, r.max));
+        if (r.any) {
+            const pages: f32 = @floatCast(@max(0, r.max));
+            s.system.page_outs_sec = pages * bytes_per_page;
+        }
     }
 }

@@ -68,7 +68,7 @@ pub const System = struct {
     net_out: u64 = 0,
     net_in_sec: f32 = 0,
     net_out_sec: f32 = 0,
-    /// Pages read in (hard faults) and written out, a second lately.
+    /// Bytes of pages read in (hard faults) and written out, a second lately.
     page_ins_sec: f32 = 0,
     page_outs_sec: f32 = 0,
     /// The GPU's use, percent, and the memory it has in use.

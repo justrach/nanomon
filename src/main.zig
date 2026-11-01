@@ -28,7 +28,8 @@ pub fn main(init: std.process.Init) !void {
             .name = "nanomon",
             .changed = .{ .ctx = &a, .func = App.graffAnswered },
         });
-        defer a.updater.?.deinit();
     }
+    // Freed after the app runs: its sidebar and the update callback hold it.
+    defer if (a.updater) |u| u.deinit();
     try app.run();
 }

@@ -191,6 +191,31 @@ test "the keyboard: pages, the selection, Escape" {
     try std.testing.expect(a.selected == null);
 }
 
+test "the header's controls take clicks; the rest of it drags the window" {
+    if (builtin.os.tag != .windows) return error.SkipZigTest;
+    const gpa = std.testing.allocator;
+    var a: App = .init(gpa, std.testing.io);
+    defer a.deinit();
+    try fake(&a);
+    a.live = false;
+    a.page = .processes;
+    var t: ui.Tester = undefined;
+    try t.init(gpa, .init(&a, view.view), .{ .width = 1100, .height = 760, .theme = theme.ui(false) });
+    defer t.deinit();
+    const wf = @import("win_frame.zig");
+    wf.setContext(&t.ctx);
+    // Overview painted once; then Processes, one frame and no more: the hit
+    // test must use what that frame painted, not the frame before it.
+    t.frame();
+    a.page = .processes;
+    t.frame();
+    // The toolbar's filter, in the header's left half, is the client's.
+    const filter = t.findText("All Processes").?;
+    try std.testing.expect(wf.overControl(filter.x + 2, filter.y + 2));
+    // The bare part of the header still drags, as the caption did.
+    try std.testing.expect(!wf.overControl(20, 20));
+}
+
 test "a real sample finds this process, its CPU time and memory" {
     if (!@hasDecl(sample.os, "collect") or (builtin.os.tag != .macos and builtin.os.tag != .linux and builtin.os.tag != .windows)) return error.SkipZigTest;
     var a: App = .init(std.testing.allocator, std.testing.io);
@@ -209,8 +234,9 @@ test "a real sample finds this process, its CPU time and memory" {
     try std.testing.expect(a.sampler.procs.items.len >= 2);
     try std.testing.expect(a.sampler.system.mem_total > 0);
     try std.testing.expect(a.sampler.system.cores >= 1);
-    // The page file's size, which the Memory page shows.
-    if (builtin.os.tag == .windows) try std.testing.expect(a.sampler.system.swap_total > 0);
+    // A page file need not exist (paging can be turned off); when one does,
+    // its use cannot pass its size.
+    if (builtin.os.tag == .windows) try std.testing.expect(a.sampler.system.swap_used <= a.sampler.system.swap_total);
 }
 
 test "real samples: ps fills in the system's processes, and the window shows them" {

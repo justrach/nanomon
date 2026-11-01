@@ -133,7 +133,7 @@ fn pressure(c: *ui.Context, a: *App, k: theme.Colors) void {
     }
 }
 
-/// What is committed beyond memory: the page file's size and what it holds.
+/// The page file's size, and what it holds.
 fn swap(c: *ui.Context, a: *App, k: theme.Colors) void {
     const sy = a.sampler.system;
     const d = kit.card(c, k).w(268).gap(6);

@@ -188,8 +188,13 @@ pub const App = struct {
             .content = .{ .view = .init(a, @import("view.zig").view) },
             .on_close = .{ .ctx = a, .func = windowClosed },
         }) catch return;
-        // The header is the title bar: no system caption above it.
-        if (comptime builtin.os.tag == .windows) @import("win_frame.zig").install(a.window.?.hwnd);
+        // The header is the title bar: no system caption above it, and the
+        // hit test reads the boxes the surface's last frame committed.
+        if (comptime builtin.os.tag == .windows) {
+            const win_frame = @import("win_frame.zig");
+            if (a.window.?.surface) |s| win_frame.setContext(&s.ctx);
+            win_frame.install(a.window.?.hwnd);
+        }
         a.window.?.focus();
     }
 
@@ -256,11 +261,7 @@ pub const App = struct {
         a.rows.clearRetainingCapacity();
         const q = std.mem.trim(u8, a.query.text(), " ");
         for (procs, 0..) |p, i| {
-            switch (a.filter) {
-                .all => {},
-                .mine => if (p.uid != a.uid) continue,
-                .system => if (p.uid != 0) continue,
-            }
+            if (!shown(a, p)) continue;
             if (q.len > 0 and !matches(p, q)) continue;
             a.rows.append(a.sampler.gpa, @intCast(i)) catch return;
         }
@@ -326,6 +327,17 @@ pub const App = struct {
     pub fn outerBundle(path: []const u8) []const u8 {
         const end = std.mem.indexOf(u8, path, ".app") orelse return path;
         return path[0 .. end + 4];
+    }
+
+    /// Whether `p` shows under the filter. The system's processes are
+    /// root's elsewhere; on Windows, where the user is 0, everyone's but
+    /// the user's (SYSTEM, services, other accounts).
+    fn shown(a: *App, p: model.Process) bool {
+        return switch (a.filter) {
+            .all => true,
+            .mine => p.uid == a.uid,
+            .system => if (comptime builtin.os.tag == .windows) p.uid != a.uid else p.uid == 0,
+        };
     }
 
     fn matches(p: model.Process, q: []const u8) bool {
@@ -515,6 +527,17 @@ test "the table follows the filter, the search and the sort" {
     a.setFilter(.system);
     _ = a.tick(0);
     try std.testing.expectEqual(@as(usize, 1), a.rows.items.len);
+    // On Windows the user is 0: the system's are the other owners'.
+    if (comptime builtin.os.tag == .windows) {
+        a.uid = 0;
+        a.setFilter(.mine);
+        _ = a.tick(0);
+        try std.testing.expectEqual(@as(usize, 1), a.rows.items.len);
+        a.setFilter(.system);
+        _ = a.tick(0);
+        try std.testing.expectEqual(@as(usize, 2), a.rows.items.len);
+        a.uid = 501;
+    }
     a.setFilter(.all);
     a.show(.memory);
     _ = a.tick(0);
