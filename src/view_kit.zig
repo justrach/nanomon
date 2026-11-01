@@ -13,9 +13,13 @@ const App = app_mod.App;
 
 pub const header_h = 52;
 
+/// The header's right margin: room for the window's buttons (Windows draws
+/// no caption of its own; win_frame.zig), then the page's.
+const header_pr: f32 = if (@import("builtin").os.tag == .windows) 20 + @import("win_frame.zig").caption_w else 20;
+
 /// The page's title and what it is about; add controls, then `end`.
 pub fn header(c: *ui.Context, k: theme.Colors, name: []const u8, subtitle: []const u8) ui.Div {
-    const h = ui.div(c).row().wFull().h(header_h).itemsCenter().gap(8).px(20);
+    const h = ui.div(c).row().wFull().h(header_h).itemsCenter().gap(8).pl(20).pr(header_pr);
     {
         const t = ui.div(c).column().gap(1).clip();
         defer t.end();
@@ -110,6 +114,46 @@ pub fn segmented(c: *ui.Context, k: theme.Colors, items: []const []const u8, on:
         ui.text(c, name, .{ .size = 11.5, .weight = if (i == on) .semibold else .regular, .color = if (i == on) k.text else k.secondary });
     }
     return picked;
+}
+
+/// The window's own buttons, at the header's right: minimize, maximize,
+/// close. Windows draws no caption there (win_frame.zig), so the page
+/// says what they do.
+pub fn caption(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const width: f32 = @import("win_frame.zig").caption_w;
+    const r = ui.div(c).fixed().offset(c.size.w - width, 0).w(width).h(header_h).row();
+    defer r.end();
+    if (captionButton(c, k, .minimize)) {
+        if (a.window) |window| window.minimize();
+    }
+    if (captionButton(c, k, .maximize)) {
+        if (a.window) |window| window.zoom();
+    }
+    if (captionButton(c, k, .close)) {
+        if (a.window) |window| window.close();
+    }
+}
+
+const Caption = enum { minimize, maximize, close };
+
+fn captionButton(c: *ui.Context, k: theme.Colors, kind: Caption) bool {
+    const id = switch (kind) {
+        .minimize => "caption-min",
+        .maximize => "caption-max",
+        .close => "caption-close",
+    };
+    ui.key(c, id);
+    const d = ui.div(c).row().w(@import("win_frame.zig").caption_w / 3).h(header_h).center();
+    const out = d.hover(k.hover).control();
+    defer out.end();
+    switch (kind) {
+        .minimize => _ = c.leaf(.{ .width = .{ .px = 10 }, .height = .{ .px = 1 }, .background = k.secondary }, .none, null),
+        .maximize => {
+            _ = c.leaf(.{ .width = .{ .px = 10 }, .height = .{ .px = 10 }, .border = k.secondary, .border_width = 1 }, .none, null);
+        },
+        .close => ui.icon(c, "xmark", .{ .size = 10, .color = k.secondary }),
+    }
+    return out.clicked();
 }
 
 /// The graphs' range (1m, 5m, 15m, 1h), and pause.

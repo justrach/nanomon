@@ -52,6 +52,9 @@ pub fn view(a: *App, c: *ui.Context) void {
             .about => pages.about.page(c, a, k),
         }
     }
+    // Windows draws no caption: the header is the title bar, and its right
+    // end carries the window's buttons.
+    if (comptime @import("builtin").os.tag == .windows) kit.caption(c, a, k);
     sheet.menu(c, a, k);
     sheet.inspector(c, a, k);
     sheet.confirm(c, a, k);

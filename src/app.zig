@@ -14,7 +14,7 @@ extern "c" fn getuid() c_uint;
 extern "c" fn getpid() c_int;
 
 fn sendSignal(pid: c_int, sig: c_int) callconv(.c) c_int {
-    if (comptime builtin.os.tag == .windows) return -1;
+    if (comptime builtin.os.tag == .windows) return sample.os.signal(pid, sig);
     return kill(pid, sig);
 }
 
@@ -188,6 +188,8 @@ pub const App = struct {
             .content = .{ .view = .init(a, @import("view.zig").view) },
             .on_close = .{ .ctx = a, .func = windowClosed },
         }) catch return;
+        // The header is the title bar: no system caption above it.
+        if (comptime builtin.os.tag == .windows) @import("win_frame.zig").install(a.window.?.hwnd);
         a.window.?.focus();
     }
 
@@ -437,7 +439,9 @@ pub const App = struct {
     /// Whether quitting `pid` is out of the question: nanomon itself,
     /// launchd, the kernel.
     pub fn untouchable(pid: i32) bool {
-        return pid <= 1 or (comptime builtin.os.tag != .windows) and pid == getpid();
+        if (pid <= 1) return true;
+        if (comptime builtin.os.tag == .windows) return pid == sample.os.selfPid();
+        return pid == getpid();
     }
 
     /// Quits every marked process (asks, or with `force` makes it); says

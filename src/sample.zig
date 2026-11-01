@@ -10,6 +10,7 @@ const Process = model.Process;
 pub const os = switch (builtin.os.tag) {
     .macos => @import("sample_mac.zig"),
     .linux => @import("sample_linux.zig"),
+    .windows => @import("sample_win.zig"),
     else => @import("sample_none.zig"),
 };
 
@@ -111,7 +112,11 @@ pub const Sampler = struct {
         var buf: [1024]u8 = undefined;
         const got = make.name(&buf);
         const owned = s.gpa.dupe(u8, got) catch return .{ .owned = &.{}, .name = "?", .bundle = "" };
-        const named: Named = if (std.mem.indexOfScalar(u8, owned, '/') != null)
+        const named: Named = if (comptime builtin.os.tag == .windows)
+            // A program is its own app there: the file's name to show, the
+            // path its processes share (chrome.exe → "chrome").
+            .{ .owned = owned, .name = std.fs.path.basename(owned), .bundle = owned }
+        else if (std.mem.indexOfScalar(u8, owned, '/') != null)
             .{ .owned = owned, .name = displayName(owned), .bundle = bundlePath(owned) }
         else
             .{ .owned = owned, .name = owned, .bundle = "" };

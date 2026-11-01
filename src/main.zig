@@ -20,12 +20,15 @@ pub fn main(init: std.process.Init) !void {
     var bar: menubar.MenuBar = .{ .a = &a, .app = app };
     defer bar.deinit();
     bar.start();
-    a.updater = try nanoui.Updater.start(init, .{
-        .repo = "justrach/nanomon",
-        .asset = "nanomon-macos-arm64.zip",
-        .name = "nanomon",
-        .changed = .{ .ctx = &a, .func = App.graffAnswered },
-    });
-    defer a.updater.?.deinit();
+    // No release is built for Windows yet: nothing to update to there.
+    if (comptime @import("builtin").os.tag != .windows) {
+        a.updater = try nanoui.Updater.start(init, .{
+            .repo = "justrach/nanomon",
+            .asset = "nanomon-macos-arm64.zip",
+            .name = "nanomon",
+            .changed = .{ .ctx = &a, .func = App.graffAnswered },
+        });
+        defer a.updater.?.deinit();
+    }
     try app.run();
 }

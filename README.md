@@ -89,8 +89,11 @@ zig build run --fork=../..
 - **CPU:** the processor's load over a cell graph (system rust under user
   amber); each core's load with fast and frugal cores apart; load
   averages against the core count, tasks, threads and uptime.
-- **Memory:** app, wired and compressed memory stacked over time, the
-  pressure, and the largest processes.
+- **Memory:** the memory in use, stacked over time as app, wired and
+  compressed; a ring of what is in use beside each kind and what is free;
+  the pressure, in a ring, with the pages read in and written out; the
+  swap's size and what it holds; and the apps that hold the most, as
+  cards and as a list.
 - **GPU, Disk, Network:** the load or rates over time, totals since boot,
   and the processes that wrote the most.
 - **Apps:** processes grouped by the app they belong to (Chrome and its
@@ -157,7 +160,25 @@ interfaces:
   `/proc/stat` (each core too), `/proc/meminfo`, `/proc/diskstats`,
   `/proc/loadavg`, `/proc/uptime` and `/proc/net/dev`. There's no GPU page
   data there.
-- **Windows**: not yet. The app builds and says so.
+- **Windows**: NtQuerySystemInformation lists the processes (their paths,
+  parents, CPU time, threads, private working set and disk bytes), each
+  processor's ticks, the machine's I/O since boot, and the memory's split
+  (MEMORYSTATUSEX and PERFORMANCE_INFORMATION; wired is the non-paged pool,
+  and compressed the Memory Compression process's working set); a process's
+  owner comes from
+  its token, and the network's bytes from each hardware interface. A process
+  whose owner cannot be read without administrator rights goes without a
+  user. Windows has no load average: nanomon's is the average number of busy
+  cores over the minute. The page file's size is the commit limit, and the
+  pages read in and written out a second are the Memory performance counters'.
+  Windows draws no title bar over the window: the page's header is the title
+  bar (drag it to move the window, double-click it to maximize), with the
+  window's minimize, maximize and close buttons at its right end. The resize
+  edges, the shadow and Windows 11's rounded corners stay the system's. The GPU's use, its memory and the thermal zones come
+  from performance counters, so temperatures show where the firmware exposes
+  them; the menu bar is macOS's alone. Processes group into apps by the
+  program they run from, and each program's icon comes from its own
+  resources, through GDI.
 
 % CPU is a share of one core over the last interval (two seconds), as
 Activity Monitor counts it, so a busy process can pass 100%.
@@ -190,7 +211,8 @@ Apple's private interfaces.
 - **Select**: click a row, or move with ↑ and ↓.
 - **Inspect**: double-click a row, press ⓘ or ⌘I.
 - **Quit a process**: ⓧ or ⌥⌘Q. You're asked first. Quit sends SIGTERM,
-  which asks the process to close; Force Quit sends SIGKILL.
+  which asks the process to close; Force Quit sends SIGKILL. On Windows,
+  Quit posts WM_CLOSE to the process's windows, and Force Quit ends it.
 - **Close**: Escape closes the open sheet or menu, then clears the selection.
 
 ## Files
@@ -203,14 +225,16 @@ src/app.zig           state: sampling, order, search, selection, quitting
 src/model.zig         processes, the system, sorting, formatting
 src/sample.zig        a sample: CPU percentages, history, names, users
 src/sample_mac.zig    libproc, Mach and sysctl
-src/icons.zig         app icons for the table (macOS)
+src/icons.zig         app icons for the table (macOS, Windows)
 src/ps.zig            /bin/ps for the processes nanomon may not read
 src/sample_linux.zig  /proc
+src/sample_win.zig    NtQuerySystemInformation, tokens
 src/sample_none.zig   elsewhere
 src/sample_sys_mac.zig   chip, cores, load, uptime, threads, thermal, network
 src/sample_iokit_mac.zig the disks and the GPU, from IOKit
 src/sample_temp_mac.zig  temperatures, from IOKit's HID sensors
 src/sample_sys_linux.zig the same from /proc
+src/sample_sys_win.zig   the registry, the interface table, the load
 src/view.zig          the window: sidebar, page, sheets, keys
 src/view_side.zig     the sidebar
 src/view_kit.zig      headers, cards, figures, bars, ranges, the cell graph

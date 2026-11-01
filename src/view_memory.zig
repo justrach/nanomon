@@ -1,7 +1,8 @@
-//! The Memory page: memory in use now and across the range, app memory,
-//! wired and compressed stacked; how hard memory is pressed; where it
-//! goes (the busiest processes). And the GPU page: its load across the
-//! range, the renderer and tiler apart, and the memory it holds.
+//! The Memory page, laid out as Pulse has it: memory in use over the range,
+//! then where it goes by type (a ring and its legend), how hard it is
+//! pressed (with the pages read in and out), and the swap; then the memory
+//! each app holds, as a row of cards and as a list. And the GPU page: its
+//! load across the range, the renderer and tiler apart, and its memory.
 const std = @import("std");
 const nanoui = @import("nanoui");
 const ui = nanoui.ui;
@@ -9,7 +10,8 @@ const model = @import("model.zig");
 const theme = @import("theme.zig");
 const kit = @import("view_kit.zig");
 const view = @import("view.zig");
-const App = @import("app.zig").App;
+const app_mod = @import("app.zig");
+const App = app_mod.App;
 
 fn usedPercent(sy: model.System) f32 {
     if (sy.mem_total == 0) return 0;
@@ -34,9 +36,14 @@ pub fn page(c: *ui.Context, a: *App, k: theme.Colors) void {
     const body = view.body(c);
     defer body.end();
     usage(c, a, k, 150);
-    const r = ui.div(c).row().wFull().gap(14).itemsStart();
-    defer r.end();
-    pressure(c, a, k);
+    {
+        const r = ui.div(c).row().wFull().gap(14).itemsStart();
+        defer r.end();
+        byType(c, a, k);
+        pressure(c, a, k);
+        swap(c, a, k);
+    }
+    appsGrid(c, a, k);
     top(c, a, k);
 }
 
@@ -70,55 +77,172 @@ pub fn usage(c: *ui.Context, a: *App, k: theme.Colors, h: f32) void {
     kit.dots(c, k, a, &series, 100, h, true, .memory);
 }
 
-/// How hard memory is pressed, and its range in green, yellow and red.
-fn pressure(c: *ui.Context, a: *App, k: theme.Colors) void {
-    const p = a.sampler.system.pressure;
-    const d = kit.card(c, k).w(300);
+/// Where the memory goes: a ring of what is in use, and each kind beside it.
+fn byType(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const sy = a.sampler.system;
+    const d = kit.card(c, k).grow().w(0).gap(10);
     defer d.end();
     {
-        const t = kit.title(c, "gauge.with.dots.needle.33percent", "Pressure", k.green);
+        const t = kit.title(c, "chart.pie", "Memory by Type", k.blue);
         defer t.end();
     }
-    const color = if (p >= 80) k.red else if (p >= 50) k.yellow else k.green;
     {
-        const r = ui.div(c).row().itemsEnd().gap(8);
+        const r = ui.div(c).row().wFull().gap(16).itemsCenter();
         defer r.end();
-        ui.text(c, c.print("{d:.0}%", .{p}), .{ .size = 28, .weight = .bold, .color = k.text });
-        const n = ui.div(c).column().pb(5);
-        defer n.end();
-        ui.text(c, pressureName(p), .{ .size = 12, .weight = .semibold, .color = color });
+        {
+            const col = ui.div(c).column().itemsCenter().gap(1);
+            defer col.end();
+            nanoui.kit.ring(c, usedPercent(sy) / 100, .{ .size = 96, .color = k.green });
+            ui.text(c, "in use", .{ .size = 10.5, .color = k.secondary });
+        }
+        const list = ui.div(c).column().grow().w(0).gap(3);
+        defer list.end();
+        var b: [5][32]u8 = undefined;
+        // What is available already counts the cache; the rest is free.
+        const free = sy.mem_total -| sy.memUsed() -| sy.mem_cached;
+        kit.line(c, k, "App", c.print("{s}", .{model.bytes(&b[0], sy.mem_app)}), k.green);
+        kit.line(c, k, "Wired", c.print("{s}", .{model.bytes(&b[1], sy.mem_wired)}), k.orange);
+        kit.line(c, k, "Compressed", c.print("{s}", .{model.bytes(&b[2], sy.mem_compressed)}), k.purple);
+        kit.line(c, k, "Cached", c.print("{s}", .{model.bytes(&b[3], sy.mem_cached)}), k.gray);
+        kit.line(c, k, "Free", c.print("{s}", .{model.bytes(&b[4], free)}), k.tertiary);
     }
-    {
-        // A bar grows along a row.
-        const r = ui.div(c).row().wFull();
-        defer r.end();
-        kit.bar(c, k, p / 100, color);
-    }
-    ui.text(c, "How hard the system works to find free memory: compressing, swapping. Green is fine; red means apps are waiting on memory.", .{ .size = 11, .color = k.secondary, .wrap = true });
 }
 
-/// The processes holding the most memory, with bars against the first.
-fn top(c: *ui.Context, a: *App, k: theme.Colors) void {
-    const d = kit.card(c, k).grow().w(0).gap(6);
+/// How hard memory is pressed, the pages moving, and the state in a word.
+fn pressure(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const sy = a.sampler.system;
+    const p = sy.pressure;
+    const d = kit.card(c, k).w(268).gap(8);
     defer d.end();
     {
-        const t = kit.title(c, "list.bullet", "Largest Processes", k.green);
+        const t = kit.title(c, "gauge.with.dots.needle.33percent", "Pressure", k.teal);
+        defer t.end();
+        ui.text(c, pressureName(p), .{ .size = 10.5, .weight = .semibold, .color = if (p >= 80) k.red else if (p >= 50) k.yellow else k.green });
+    }
+    {
+        const col = ui.div(c).column().wFull().itemsCenter().gap(1);
+        defer col.end();
+        nanoui.kit.ring(c, p / 100, .{ .size = 96, .label = c.print("{d:.0}%", .{p}), .color = if (p >= 80) k.red else if (p >= 50) k.yellow else k.green });
+        ui.text(c, "pressure", .{ .size = 10.5, .color = k.secondary });
+    }
+    // Only where the platform counts them.
+    if (sy.page_ins_sec > 0 or sy.page_outs_sec > 0) {
+        var b: [2][24]u8 = undefined;
+        kit.line(c, k, "Page-ins", c.print("{s}", .{model.rate(&b[0], sy.page_ins_sec)}), null);
+        kit.line(c, k, "Swap-outs", c.print("{s}", .{model.rate(&b[1], sy.page_outs_sec)}), null);
+    }
+}
+
+/// What is committed beyond memory: the page file's size and what it holds.
+fn swap(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const sy = a.sampler.system;
+    const d = kit.card(c, k).w(268).gap(6);
+    defer d.end();
+    {
+        const t = kit.title(c, "arrow.left.arrow.right", "Swap", k.orange);
         defer t.end();
     }
-    var best: [8]model.Process = undefined;
-    const n = largest(a, &best, .memory);
-    const most: f32 = if (n > 0) @floatFromInt(@max(1, best[0].memory)) else 1;
-    var b: [32]u8 = undefined;
-    for (best[0..n]) |p| {
-        ui.key(c, c.print("top-{d}", .{p.pid}));
-        const r = ui.div(c).row().wFull().gap(10).itemsCenter().h(22);
-        defer r.end();
-        procName(c, a, k, p, 170);
-        kit.bar(c, k, @as(f32, @floatFromInt(p.memory)) / most, k.green);
-        const v = ui.div(c).row().w(72).justifyEnd();
-        ui.text(c, c.print("{s}", .{model.bytes(&b, p.memory)}), .{ .size = 11.5, .weight = .semibold, .color = k.text });
-        v.end();
+    var b: [4][32]u8 = undefined;
+    if (sy.swap_total > 0 and sy.mem_total > 0) {
+        kit.line(c, k, "Swap size", c.print("{s}", .{model.bytes(&b[0], sy.swap_total)}), null);
+        kit.line(c, k, "In use", c.print("{s}", .{model.bytes(&b[1], sy.swap_used)}), null);
+        {
+            const r = ui.div(c).row().wFull().pt(2);
+            defer r.end();
+            kit.bar(c, k, @as(f32, @floatFromInt(sy.swap_used)) / @as(f32, @floatFromInt(@max(1, sy.swap_total))), k.orange);
+        }
+    } else kit.line(c, k, "In use", c.print("{s}", .{model.bytes(&b[0], sy.swap_used)}), null);
+    kit.line(c, k, "Compressed", c.print("{s}", .{model.bytes(&b[2], sy.mem_compressed)}), null);
+    ui.text(c, "Memory Windows compressed to hold more, in place of writing it out.", .{ .size = 10.5, .color = k.tertiary, .wrap = true });
+}
+
+/// An app's icon at `size` points, or a placeholder.
+fn appIcon(c: *ui.Context, a: *App, bundle: []const u8, size: f32) void {
+    const box = ui.div(c).row().w(size).h(size).center();
+    defer box.end();
+    if (a.icons.get(bundle)) |png| {
+        _ = ui.image(c, .{ .key = bundle, .bytes = png, .max_width = size, .max_height = size, .radius = 0 });
+    } else {
+        ui.icon(c, "app.dashed", .{ .size = size * 0.7, .color = c.theme.muted });
     }
+}
+
+/// The memory each app holds, a card each.
+fn appsGrid(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const d = kit.card(c, k).gap(10);
+    defer d.end();
+    {
+        const t = kit.title(c, "square.grid.2x2", "Memory by App", k.purple);
+        defer t.end();
+        if (ui.button(c, "Show All", .{ .variant = .ghost, .size = 11 }).clicked) a.page = .apps;
+    }
+    var best: [7]app_mod.AppRow = undefined;
+    const n = topApps(a, &best);
+    if (n == 0) {
+        ui.text(c, "No app's processes could be read.", .{ .size = 11.5, .color = k.secondary });
+        return;
+    }
+    const r = ui.div(c).row().wFull().gap(10);
+    defer r.end();
+    var b: [32]u8 = undefined;
+    for (best[0..n]) |app| {
+        ui.key(c, c.print("mem-app-{d}", .{app.pid}));
+        const cell = ui.div(c).column().grow().w(0).gap(6).p(10).rounded(8).bg(k.well).hover(k.hover).control();
+        defer cell.end();
+        if (cell.clicked()) a.page = .apps;
+        appIcon(c, a, app.bundle, 22);
+        ui.spacer(c);
+        ui.text(c, app.name, .{ .size = 11.5, .weight = .medium, .color = k.text });
+        ui.text(c, c.print("{s}", .{model.bytes(&b, app.memory)}), .{ .size = 10.5, .mono = true, .color = k.secondary });
+    }
+}
+
+/// The apps holding the most memory, with how many processes each.
+fn top(c: *ui.Context, a: *App, k: theme.Colors) void {
+    const d = kit.card(c, k).gap(4);
+    defer d.end();
+    {
+        const t = kit.title(c, "list.bullet", "Using the Most Memory", k.green);
+        defer t.end();
+        if (ui.button(c, "Show All", .{ .variant = .ghost, .size = 11 }).clicked) a.page = .apps;
+    }
+    var best: [8]app_mod.AppRow = undefined;
+    const n = topApps(a, &best);
+    if (n == 0) {
+        ui.text(c, "No app's processes could be read.", .{ .size = 11.5, .color = k.secondary });
+        return;
+    }
+    const most: f32 = @floatFromInt(@max(1, best[0].memory));
+    var b: [32]u8 = undefined;
+    for (best[0..n]) |app| {
+        ui.key(c, c.print("top-app-{d}", .{app.pid}));
+        const r = ui.div(c).row().wFull().gap(10).itemsCenter().h(24);
+        defer r.end();
+        appIcon(c, a, app.bundle, 16);
+        ui.text(c, app.name, .{ .size = 12, .color = k.text });
+        if (app.processes > 1) ui.text(c, c.print("{d}", .{app.processes}), .{ .size = 10, .color = k.tertiary });
+        kit.bar(c, k, @as(f32, @floatFromInt(app.memory)) / most, k.green);
+        const v = ui.div(c).row().w(72).justifyEnd();
+        defer v.end();
+        ui.text(c, c.print("{s}", .{model.bytes(&b, app.memory)}), .{ .size = 11.5, .weight = .semibold, .mono = true, .color = k.text });
+    }
+}
+
+/// The `out.len` apps holding the most memory.
+fn topApps(a: *App, out: []app_mod.AppRow) usize {
+    var n: usize = 0;
+    for (a.apps.items) |row| {
+        if (row.memory == 0) continue;
+        // Insert in order, the smallest falling off the end.
+        var at = n;
+        while (at > 0 and out[at - 1].memory < row.memory) : (at -= 1) {}
+        if (at >= out.len) continue;
+        var j = @min(n, out.len - 1);
+        while (j > at) : (j -= 1) out[j] = out[j - 1];
+        out[at] = row;
+        n = @min(n + 1, out.len);
+    }
+    return n;
 }
 
 /// A process's icon and name in `w` points.

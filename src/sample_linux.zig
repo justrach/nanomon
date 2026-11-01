@@ -190,5 +190,6 @@ fn memory(s: *Sampler) void {
     s.system.mem_wired = 0;
     s.system.mem_compressed = 0;
     s.system.swap_used = swap_total -| swap_free;
+    s.system.swap_total = swap_total;
     if (total > 0) s.system.pressure = @floatCast(100 - @as(f64, @floatFromInt(available)) / @as(f64, @floatFromInt(total)) * 100);
 }

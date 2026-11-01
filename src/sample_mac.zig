@@ -226,7 +226,10 @@ fn system(s: *Sampler) void {
     s.system.cores = st.cores;
     var swap: SwapUsage = undefined;
     var len: usize = @sizeOf(SwapUsage);
-    if (sysctlbyname("vm.swapusage", &swap, &len, null, 0) == 0) s.system.swap_used = swap.used;
+    if (sysctlbyname("vm.swapusage", &swap, &len, null, 0) == 0) {
+        s.system.swap_used = swap.used;
+        s.system.swap_total = swap.total;
+    }
     // The share of memory the kernel counts as available, as a percent.
     var level: c_int = 100;
     len = @sizeOf(c_int);

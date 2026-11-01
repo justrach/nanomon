@@ -38,7 +38,7 @@ pub fn sidebar(c: *ui.Context, a: *App, k: theme.Colors) void {
     item(c, a, k, .{ .page = .network, .icon = "network", .name = "Network" }, k.teal, c.print("{s}", .{model.rate(&b, sy.net_in_sec + sy.net_out_sec)}));
     section(c, k, "System");
     item(c, a, k, .{ .page = .apps, .icon = "square.grid.3x3", .name = "Apps" }, k.purple, c.print("{d}", .{a.apps.items.len}));
-    item(c, a, k, .{ .page = .about, .icon = "desktopcomputer", .name = "About This Mac" }, k.gray, "");
+    item(c, a, k, .{ .page = .about, .icon = "desktopcomputer", .name = @import("view_about.zig").title }, k.gray, "");
     ui.spacer(c);
     update(c, a, k);
     status(c, a, k);

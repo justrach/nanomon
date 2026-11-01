@@ -89,7 +89,9 @@ test "processes are marked by their boxes, ⌘-click and ⇧-click, and quit tog
 
 test "nanomon itself, launchd and the kernel are never signaled" {
     try std.testing.expect(App.untouchable(0) and App.untouchable(1));
-    if (builtin.os.tag != .windows) try std.testing.expect(App.untouchable(std.c.getpid()));
+    if (builtin.os.tag == .windows) {
+        try std.testing.expect(App.untouchable(@import("sample.zig").os.selfPid()));
+    } else try std.testing.expect(App.untouchable(std.c.getpid()));
 }
 
 test "the graff bubble asks graff, shows its answer, and marks only what may be quit" {

@@ -1,6 +1,8 @@
-//! About This Mac: the machine's name, model and chip, its cores of each
-//! kind, its GPU, memory and system, and how long it has been up.
+//! About This Mac (About This PC elsewhere): the machine's name, model and
+//! chip, its cores of each kind, its GPU, memory and system, and how long it
+//! has been up.
 const std = @import("std");
+const builtin = @import("builtin");
 const nanoui = @import("nanoui");
 const ui = nanoui.ui;
 const model = @import("model.zig");
@@ -9,12 +11,15 @@ const kit = @import("view_kit.zig");
 const view = @import("view.zig");
 const App = @import("app.zig").App;
 
+/// What the page and the sidebar call it.
+pub const title = if (builtin.os.tag == .macos) "About This Mac" else "About This PC";
+
 pub fn page(c: *ui.Context, a: *App, k: theme.Colors) void {
     const s = &a.sampler;
     const info = s.info;
     const sy = s.system;
     {
-        const h = kit.header(c, k, "About This Mac", info.os);
+        const h = kit.header(c, k, title, info.os);
         defer h.end();
     }
     const body = view.body(c);

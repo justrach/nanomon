@@ -97,7 +97,7 @@ test "the pages: overview, CPU, memory, GPU, disk, network, apps, this Mac" {
     try open(&t, "5m");
     try std.testing.expect(a.range == .m5 and t.hasText("over 5m") and t.hasText("−4m"));
     try open(&t, "Memory");
-    try std.testing.expect(t.hasText("Memory Usage") and t.hasText("Largest Processes") and t.hasText("Normal"));
+    try std.testing.expect(t.hasText("Memory Usage") and t.hasText("Memory by Type") and t.hasText("Using the Most Memory") and t.hasText("Normal"));
     try t.screenshot("/tmp/nanomon-memory.png");
     try open(&t, "GPU");
     try std.testing.expect(t.hasText("GPU Load") and t.hasText("Renderer"));
@@ -112,7 +112,7 @@ test "the pages: overview, CPU, memory, GPU, disk, network, apps, this Mac" {
     try std.testing.expect(t.hasText("2 apps · 3 processes"));
     try std.testing.expect(below(&t, "Safari", "Mail"));
     try t.screenshot("/tmp/nanomon-apps.png");
-    try open(&t, "About This Mac");
+    try open(&t, @import("view_about.zig").title);
     try std.testing.expect(t.hasText("10 (4 Super, 6 Efficiency)") and t.hasText("Apple M5, 10 cores"));
     try t.screenshot("/tmp/nanomon-about.png");
     // Pausing holds the graphs still.
@@ -192,7 +192,7 @@ test "the keyboard: pages, the selection, Escape" {
 }
 
 test "a real sample finds this process, its CPU time and memory" {
-    if (!@hasDecl(sample.os, "collect") or (builtin.os.tag != .macos and builtin.os.tag != .linux)) return error.SkipZigTest;
+    if (!@hasDecl(sample.os, "collect") or (builtin.os.tag != .macos and builtin.os.tag != .linux and builtin.os.tag != .windows)) return error.SkipZigTest;
     var a: App = .init(std.testing.allocator, std.testing.io);
     defer a.deinit();
     _ = a.tick(0);
@@ -201,7 +201,7 @@ test "a real sample finds this process, its CPU time and memory" {
     for (0..20_000_000) |i| x +%= i *% i;
     std.mem.doNotOptimizeAway(x);
     _ = a.tick(2.0);
-    const me = a.find(getpid()) orelse return error.NotFound;
+    const me = a.find(if (builtin.os.tag == .windows) sample.os.selfPid() else getpid()) orelse return error.NotFound;
     try std.testing.expect(me.known and me.detailed());
     try std.testing.expect(me.memory > 0);
     try std.testing.expect(me.cpu_time_ns > 0);
@@ -209,6 +209,8 @@ test "a real sample finds this process, its CPU time and memory" {
     try std.testing.expect(a.sampler.procs.items.len >= 2);
     try std.testing.expect(a.sampler.system.mem_total > 0);
     try std.testing.expect(a.sampler.system.cores >= 1);
+    // The page file's size, which the Memory page shows.
+    if (builtin.os.tag == .windows) try std.testing.expect(a.sampler.system.swap_total > 0);
 }
 
 test "real samples: ps fills in the system's processes, and the window shows them" {
