@@ -40,6 +40,13 @@ SHA-256. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml), and
 `sh macos/package.sh` builds the same disk image locally.
 
+**Linux** (GTK 3 and installed TrueType fonts): download the
+[x86_64 archive](https://github.com/justrach/nanomon/releases/latest/download/nanomon-linux-x86_64.tar.gz)
+or [arm64 archive](https://github.com/justrach/nanomon/releases/latest/download/nanomon-linux-aarch64.tar.gz),
+extract it, and run `./nanomon`. Each archive has a `.sha256` file on the
+release. On Debian/Ubuntu, install `libgtk-3-0` (or `libgtk-3-0t64`) and
+`fonts-dejavu-core` if needed. Building from source works too:
+
 ## Get started
 
 nanomon builds on its own. It fetches nanoui, pinned by commit in
@@ -155,12 +162,19 @@ interfaces:
     routing socket gives only 32 bits to anyone but root.
 - **Linux**: `/proc/<pid>/stat`, `statm`, `status` and `io`, plus
   `/proc/stat` (each core too), `/proc/meminfo`, `/proc/diskstats`,
-  `/proc/loadavg`, `/proc/uptime` and `/proc/net/dev`. There's no GPU page
-  data there.
+  `/proc/loadavg`, `/proc/uptime` and `/proc/net/dev`. Processes whose disk
+  counters are restricted by Linux's ptrace permissions still appear;
+  unavailable counters stay at zero, without logging a stack trace. There's
+  no GPU page data there.
 - **Windows**: not yet. The app builds and says so.
 
 % CPU is a share of one core over the last interval (two seconds), as
-Activity Monitor counts it, so a busy process can pass 100%.
+Activity Monitor counts it, so a busy process can pass 100%. Some Linux
+monitors (including XFCE Task Manager in whole-machine mode) divide this
+by the number of logical CPUs instead: nanomon's 25% on four logical CPUs
+is 6.25% on that scale. Compare the same interval and scale; nanomon's
+machine and per-core graphs each run from 0 to 100%. The Processes page
+shows the per-core scale below its CPU table.
 
 ## Smooth and small
 
@@ -206,6 +220,7 @@ src/sample_mac.zig    libproc, Mach and sysctl
 src/icons.zig         app icons for the table (macOS)
 src/ps.zig            /bin/ps for the processes nanomon may not read
 src/sample_linux.zig  /proc
+src/sample_proc_linux.zig bounded virtual-file reads, including read-time permission errors
 src/sample_none.zig   elsewhere
 src/sample_sys_mac.zig   chip, cores, load, uptime, threads, thermal, network
 src/sample_iokit_mac.zig the disks and the GPU, from IOKit

@@ -1,6 +1,6 @@
-# Builds nanomon for macOS (Apple silicon) and attaches the disk image, and
-# the update its updater reads (the zipped app and manifest.json), to the
-# GitHub release of the tag that was pushed.
+# Builds nanomon for macOS (Apple silicon) and Linux (x86_64 and arm64).
+# Attaches the disk image, updater files and Linux archives to the tag's
+# GitHub release.
 #
 # Signing and notarization use these repository secrets, the same names as
 # Harness's. With all five, the app and image are signed with a Developer ID
@@ -144,3 +144,27 @@ jobs:
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
           gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 \
             zig-out/package/nanomon-macos-arm64.zip zig-out/package/manifest.json --clobber
+
+  linux:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: macos # The macOS job creates the release before we attach files.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - name: Build Linux archives
+        run: |
+          mkdir -p zig-out/package
+          for arch in x86_64 aarch64; do
+            zig build -Doptimize=ReleaseSafe -Dtarget=$arch-linux-gnu --prefix zig-out/$arch
+            archive="nanomon-linux-$arch.tar.gz"
+            tar -czf "zig-out/package/$archive" -C "zig-out/$arch/bin" nanomon \
+              -C "$GITHUB_WORKSPACE" LICENSE THIRD_PARTY_NOTICES.md README.md third_party/licenses
+            (cd zig-out/package && sha256sum "$archive" > "$archive.sha256")
+          done
+      - name: Attach Linux downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" zig-out/package/*.tar.gz zig-out/package/*.tar.gz.sha256 --clobber

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - name: GTK, fonts and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-0t64 libegl1 libgl1-mesa-dri fonts-dejavu-core fonts-noto-core xvfb xauth
+      # Run unprivileged: CAP_SYS_PTRACE would bypass the denial being tested.
+      - name: Regression for read-time proc permission errors
+        run: |
+          set -o pipefail
+          zig test src/sample_proc_linux.zig -lc 2>&1 | tee proc-tests.log
+          ! grep -Eq 'unexpected errno|SKIP' proc-tests.log
+      - run: zig build test-bin
+      - name: Unit, sampler and offscreen UI tests
+        run: |
+          set -o pipefail
+          xvfb-run -a zig-out/bin/nanomon-tests 2>&1 | tee tests.log
+          ! grep -q 'unexpected errno' tests.log
+      - run: zig build -Doptimize=ReleaseSafe
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - run: zig build test
+      - run: zig build -Doptimize=ReleaseSafe
+      - run: zig build -Dtarget=x86_64-windows-gnu --prefix zig-out/windows
