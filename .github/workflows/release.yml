@@ -141,7 +141,7 @@ jobs:
             echo "The release already has nanomon-macos-arm64.dmg; keeping it."
             exit 0
           fi
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --draft --title "nanomon ${tag#v}" --notes "nanomon ${tag#v} for macOS (Apple silicon)."
           gh release upload "$tag" zig-out/package/nanomon-macos-arm64.dmg zig-out/package/nanomon-macos-arm64.dmg.sha256 \
             zig-out/package/nanomon-macos-arm64.zip zig-out/package/manifest.json --clobber
 
@@ -158,7 +158,7 @@ jobs:
         run: |
           mkdir -p zig-out/package
           for arch in x86_64 aarch64; do
-            zig build -Doptimize=ReleaseSafe -Dtarget=$arch-linux-gnu --prefix zig-out/$arch
+            zig build -Doptimize=ReleaseSafe -Dupdate-version="${GITHUB_REF_NAME#v}" -Dtarget=$arch-linux-gnu --prefix zig-out/$arch
             archive="nanomon-linux-$arch.tar.gz"
             tar -czf "zig-out/package/$archive" -C "zig-out/$arch/bin" nanomon \
               -C "$GITHUB_WORKSPACE" LICENSE THIRD_PARTY_NOTICES.md README.md third_party/licenses
@@ -167,4 +167,41 @@ jobs:
       - name: Attach Linux downloads
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" zig-out/package/*.tar.gz zig-out/package/*.tar.gz.sha256 --clobber
+        run: |
+          gh release upload "$GITHUB_REF_NAME" zig-out/package/*.tar.gz zig-out/package/*.tar.gz.sha256 --clobber
+          gh release download "$GITHUB_REF_NAME" --pattern manifest.json --dir zig-out/package
+          python3 tools/update-manifest.py "${GITHUB_REF_NAME#v}" zig-out/package/manifest.json zig-out/package/*.tar.gz
+          gh release upload "$GITHUB_REF_NAME" zig-out/package/manifest.json --clobber
+
+  verify:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: linux
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - run: zig build update-check-bin
+      - name: Signed/notarized downloads and real updater, headless
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/verify-release.py "$GITHUB_REF_NAME" --require-linux-manifest --update-check zig-out/bin/nanomon-update-check
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Promote only a verified release to latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest &&
+              [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "$GITHUB_REF_NAME" ]; then
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          exit 1

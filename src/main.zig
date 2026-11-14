@@ -9,6 +9,7 @@ const menubar = @import("menubar.zig");
 
 pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
+    if (args.len == 2 and std.mem.eql(u8, args[1], "--version")) return @import("updates.zig").printVersion(init.io);
     if (args.len > 1 and std.mem.eql(u8, args[1], "mcp")) {
         if (args.len > 2) return @import("mcp_setup_cli.zig").run(init, args[2..]);
         return @import("mcp_stdio.zig").run(init);
@@ -28,12 +29,7 @@ pub fn main(init: std.process.Init) !void {
     var bar: menubar.MenuBar = .{ .a = &a, .app = app };
     defer bar.deinit();
     bar.start();
-    a.updater = try nanoui.Updater.start(init, .{
-        .repo = "justrach/nanomon",
-        .asset = "nanomon-macos-arm64.zip",
-        .name = "nanomon",
-        .changed = .{ .ctx = &a, .func = App.graffAnswered },
-    });
-    defer a.updater.?.deinit();
+    a.updater = @import("updates.zig").start(init, &a, app) catch null;
+    defer if (a.updater) |u| u.deinit();
     try app.run();
 }

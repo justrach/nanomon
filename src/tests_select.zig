@@ -48,8 +48,10 @@ test "processes are marked by their boxes, ⌘-click and ⇧-click, and quit tog
     try std.testing.expect(t.hasText("1 marked"));
     // ⌘-click (Control elsewhere) marks another.
     const mail = t.findText("Mail").?;
-    t.ctx.input.cmd = true;
-    t.ctx.input.ctrl = true;
+    // Control-click is a secondary click on macOS; use the actual
+    // platform's additive modifier, not both modifiers at once.
+    t.ctx.input.cmd = builtin.os.tag == .macos;
+    t.ctx.input.ctrl = builtin.os.tag != .macos;
     t.click(mail.x + 4, mail.y + mail.h / 2);
     t.ctx.input.cmd = false;
     t.ctx.input.ctrl = false;

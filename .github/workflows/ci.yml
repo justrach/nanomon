@@ -36,6 +36,8 @@ jobs:
         run: python3 tools/check-mcp.py
       - name: Agent registration with temporary homes and fake clients
         run: python3 tools/check-mcp-setup.py
+      - name: Update manifest preserves all platforms
+        run: python3 tools/test-update-manifest.py
 
   macos:
     runs-on: macos-15
@@ -50,4 +52,7 @@ jobs:
         run: python3 tools/check-mcp.py
       - name: Agent registration with temporary homes and fake clients
         run: python3 tools/check-mcp-setup.py
+      - name: Update manifest preserves all platforms
+        run: python3 tools/test-update-manifest.py
+      - run: zig build update-check-bin
       - run: zig build -Dtarget=x86_64-windows-gnu --prefix zig-out/windows
