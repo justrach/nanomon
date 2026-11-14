@@ -40,6 +40,13 @@ SHA-256. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml), and
 `sh macos/package.sh` builds the same disk image locally.
 
+**Linux** (GTK 3 and installed TrueType fonts): download the
+[x86_64 archive](https://github.com/justrach/nanomon/releases/latest/download/nanomon-linux-x86_64.tar.gz)
+or [arm64 archive](https://github.com/justrach/nanomon/releases/latest/download/nanomon-linux-aarch64.tar.gz),
+extract it, and run `./nanomon`. Each archive has a `.sha256` file on the
+release. On Debian/Ubuntu, install `libgtk-3-0` (or `libgtk-3-0t64`) and
+`fonts-dejavu-core` if needed. Building from source works too:
+
 ## Get started
 
 nanomon builds on its own. It fetches nanoui, pinned by commit in

@@ -22,6 +22,7 @@ jobs:
       # Run unprivileged: CAP_SYS_PTRACE would bypass the denial being tested.
       - name: Regression for read-time proc permission errors
         run: |
+          set -o pipefail
           zig test src/sample_proc_linux.zig -lc 2>&1 | tee proc-tests.log
           ! grep -Eq 'unexpected errno|SKIP' proc-tests.log
       - run: zig build test-bin

@@ -54,7 +54,7 @@ const child = struct {
     extern "c" fn _exit(c_int) noreturn;
 };
 
-test "proc io denied at read time is a quiet AccessDenied, not unexpected errno 13" {
+test "proc io denied at read time returns AccessDenied quietly" {
     // Open a child's io while it is dumpable; then revoke ptrace access.
     // No real processes or user state are changed, only this test's child.
     var commands: [2]c_int = undefined;
