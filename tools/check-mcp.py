@@ -77,7 +77,9 @@ def main():
         assert 0 <= system["cpu"]["busy_percent"] <= 100.01
         processes = tool(4, "list_processes", {"query": "nanomon", "limit": 10})
         server = next(p for p in processes["processes"] if p["pid"] == process.pid)
-        assert server["memory_bytes"] > 0 and server["cpu_time_ns"] > 0
+        assert server["memory_bytes"] > 0
+        # A fast server can legitimately use less than one Linux CPU tick.
+        assert server["cpu_time_ns"] is not None and server["cpu_time_ns"] >= 0
         assert server["cpu_percent"] is not None
         detail = tool(5, "get_process", {"pid": process.pid})
         assert detail["process"]["pid"] == process.pid
