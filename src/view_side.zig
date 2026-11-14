@@ -48,7 +48,12 @@ pub fn sidebar(c: *ui.Context, a: *App, k: theme.Colors) void {
 /// A newer nanomon, downloaded and checked: restart into it.
 fn update(c: *ui.Context, a: *App, k: theme.Colors) void {
     const u = a.updater orelse return;
-    const version = u.ready() orelse return;
+    const version = u.ready() orelse {
+        if (u.phase.load(.acquire) == .off) return;
+        const checking = u.checking();
+        if (ui.button(c, if (checking) "Checking for updates…" else "Check for updates", .{ .variant = .ghost, .size = 11 }).clicked and !checking) u.checkNow();
+        return;
+    };
     const on = c.theme.accent_text;
     ui.key(c, "update");
     const d = ui.div(c).row().wFull().h(30).itemsCenter().gap(8).px(8).rounded(7).bg(k.accent).hover(c.theme.accent_hover).control();

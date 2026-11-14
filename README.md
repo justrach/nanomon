@@ -47,6 +47,21 @@ extract it, and run `./nanomon`. Each archive has a `.sha256` file on the
 release. On Debian/Ubuntu, install `libgtk-3-0` (or `libgtk-3-0t64`) and
 `fonts-dejavu-core` if needed. Building from source works too:
 
+### Automatic updates
+
+Signed macOS releases check GitHub for updates automatically. Since v0.1.11,
+nanomon uses nanolight's quiet restart: it installs a verified update while
+out of sight and returns in the background, restoring windows and view
+preferences. Paused monitoring and pending actions defer automatic restart.
+The sidebar also offers **Check for updates** and **Restart to update**.
+Linux release builds install verified updates on quit or an explicit restart;
+source builds do not replace themselves. MCP sessions never auto-restart.
+
+**Coming from ad-hoc-signed v0.1.9? Install a signed v0.1.10+ manually once.**
+See [updates and release verification](docs/updates.md). A release becomes
+`latest` only after signatures, notarization, checksums and the real updater
+have been checked headlessly.
+
 ## Get started
 
 nanomon builds on its own. It fetches nanoui, pinned by commit in

@@ -13,7 +13,7 @@ trap 'rm -rf "$work"' EXIT
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 cd "$work"
 
-gh release download "$tag" --repo "$repo" --pattern nanomon-macos-arm64.zip --pattern nanomon-macos-arm64.dmg
+gh release download "$tag" --repo "$repo" --pattern nanomon-macos-arm64.zip --pattern nanomon-macos-arm64.dmg --pattern manifest.json
 zip=nanomon-macos-arm64.zip
 dmg=nanomon-macos-arm64.dmg
 ditto -x -k "$zip" .
@@ -73,7 +73,7 @@ hdiutil verify "$dmg" >/dev/null
 spctl --assess --type execute "$bundle"
 
 shasum -a 256 "$dmg" > "$dmg.sha256"
-sum="$(shasum -a 256 "$zip" | cut -d' ' -f1)"
-printf '{"version":"%s","files":{"%s":{"sha256":"%s"}}}\n' "$version" "$zip" "$sum" > manifest.json
+# Restapling must not discard Linux entries already attached to the draft.
+python3 "$script_dir/../tools/update-manifest.py" "$version" manifest.json "$zip"
 gh release upload "$tag" "$dmg" "$dmg.sha256" "$zip" manifest.json --repo "$repo" --clobber
 echo 'Notarized assets uploaded; the release remains a draft.'

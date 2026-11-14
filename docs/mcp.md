@@ -200,6 +200,9 @@ these gaps; the server does not invent intermediate measurements.
 This server is deliberately independent of a running GUI. It does **not**
 read the GUI's existing one-hour history, page filters or pause state.
 Each MCP client process has its own sample history, discarded at exit.
+GUI [automatic updates](updates.md) do not restart an existing MCP process or
+change client configs; restart the client's server to use a newly installed
+binary. The MCP entry point never starts an updater.
 A shared GUI socket/history service could be a later, explicitly enabled
 feature; this first version creates no network or local socket listener.
 
