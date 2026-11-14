@@ -73,7 +73,7 @@ zig build run --fork=../..
 
 ## For agents: read-only MCP
 
-The MCP branch adds `nanomon mcp`, a headless stdio server using the same
+Since v0.1.10, `nanomon mcp` is a headless stdio server using the same
 sampler as the window. Agents can query system stats, filter/sort/paginate
 processes, inspect a PID, and read timestamped history from their session.
 It never opens a window, listens on a port, or allows process control.
@@ -102,8 +102,8 @@ and `"args": ["mcp"]`. The GUI need not be running. Sampling is on demand
 Normal MCP startup never modifies client configs.
 
 See [MCP setup, tools, scales and security](docs/mcp.md) for the client
-configuration and test command. This feature is newer than v0.1.9; use a
-build of the MCP branch, not the v0.1.9 release binary.
+configuration and test commands. Use v0.1.10 or newer; v0.1.9 binaries do not
+include MCP or agent setup.
 
 ## Pages
 

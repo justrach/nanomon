@@ -4,8 +4,8 @@
 Linux. It uses the same native sampler as nanomon's window: no scraping,
 webview, separate monitoring daemon, admin rights or cloud service.
 
-This feature is being developed after v0.1.9; build the MCP branch before
-configuring a client. The v0.1.9 release binaries do not contain it.
+Available in v0.1.10 and newer. The v0.1.9 release binaries do not contain
+MCP or agent setup; upgrade before configuring a client.
 
 ## Build and connect
 

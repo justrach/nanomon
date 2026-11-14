@@ -11,7 +11,7 @@ def check(bundle):
     with tempfile.TemporaryDirectory(prefix="nanomon-launch-") as tmp:
         snapshot = pathlib.Path(tmp) / "snapshot.png"
         result = subprocess.run(
-            ["/usr/bin/open", "-n", "-W", str(bundle), "--args",
+            ["/usr/bin/open", "-g", "-n", "-W", str(bundle), "--args",
              "--nanoui-snapshot=" + str(snapshot), "--nanoui-wait=2"],
             cwd="/", capture_output=True, text=True, timeout=60,
         )

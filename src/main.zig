@@ -23,6 +23,8 @@ pub fn main(init: std.process.Init) !void {
     a.agents.configure(init, args);
     if (menubar.supported) a.clock = menubar.clock;
     a.openWindow();
+    // No trays, updater/cache work or activation in dev/headless checks.
+    if (app.flags.hidden) return app.run();
     var bar: menubar.MenuBar = .{ .a = &a, .app = app };
     defer bar.deinit();
     bar.start();
