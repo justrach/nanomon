@@ -191,7 +191,9 @@ pub const App = struct {
             .content = .{ .view = .init(a, @import("view.zig").view) },
             .on_close = .{ .ctx = a, .func = windowClosed },
         }) catch return;
-        a.window.?.focus();
+        // Dev snapshots stay offscreen; update relaunches must stay quiet.
+        const quiet = if (comptime builtin.os.tag == .macos and @hasField(nanoui.App, "quiet")) app.quiet else false;
+        if (!app.flags.hidden and !quiet) a.window.?.focus();
     }
 
     fn windowClosed(ctx: *anyopaque, _: *nanoui.Window) void {
