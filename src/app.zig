@@ -119,6 +119,8 @@ pub const App = struct {
     now: f64 = 0,
     /// The graff bubble.
     graff: @import("graff.zig").Graff = .{},
+    /// Explicit first-launch consent; never configured by MCP or dev flags.
+    agents: @import("agent_setup.zig").Setup = .{},
     /// How a signal is sent (tests record instead).
     send: *const fn (pid: c_int, sig: c_int) callconv(.c) c_int = sendSignal,
     filter: Filter = .all,
@@ -168,6 +170,7 @@ pub const App = struct {
         a.window = window;
         a.sampler.on_update = .{ .ctx = a, .func = answered };
         a.graff.notify = .{ .ctx = a, .func = graffAnswered };
+        a.agents.notify = .{ .ctx = a, .func = graffAnswered };
     }
 
     /// Opens the window (again, once closed: nanomon stays in the menu bar).
@@ -219,6 +222,7 @@ pub const App = struct {
         a.apps.deinit(a.sampler.gpa);
         a.marked.deinit(a.sampler.gpa);
         a.graff.deinit(a.sampler.gpa);
+        a.agents.deinit();
         a.icons.deinit();
         a.sampler.deinit();
     }

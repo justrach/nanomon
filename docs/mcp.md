@@ -16,6 +16,92 @@ zig build -Doptimize=ReleaseSafe
 ./zig-out/bin/nanomon mcp
 ```
 
+### One-click setup after installing
+
+Move the app/binary to its permanent location first (on macOS, drag it to
+Applications and launch it there). On the first normal GUI launch, nanomon
+shows **Connect agents** with the detected client names and a data-sharing
+notice. **Connect detected clients** registers it in their user configs;
+**Not now** remembers the dismissal. The sidebar's **Agent connections…**
+button lets you retry later, including when a new client is installed.
+
+A DMG's drag-and-drop copy cannot execute an installer hook. This first-launch
+consent is intentional: connecting exposes local machine/process metadata
+to the clients and potentially their model providers, so it is not silently
+enabled just by downloading or copying an app. Startup, app updates, MCP
+sessions and `--nanoui-*` development checks never install connections.
+Removing a connection does not make a later launch silently restore it.
+
+### Terminal or installer setup
+
+```sh
+./zig-out/bin/nanomon mcp install --dry-run
+./zig-out/bin/nanomon mcp install
+./zig-out/bin/nanomon mcp status
+./zig-out/bin/nanomon mcp uninstall
+# Explicitly target a client, even without an existing profile:
+./zig-out/bin/nanomon mcp install --client cursor
+```
+
+For an installed Mac app, replace `./zig-out/bin/nanomon` with
+`/Applications/nanomon.app/Contents/MacOS/nanomon`. Installer scripts can run
+`mcp install` **after** placing the binary at its final path; it is an explicit
+opt-in command, not something the server invokes. Running from a disk image,
+App Translocation or Zig's build cache is rejected to avoid broken commands.
+`mcp help` lists all commands and client keys. Setup supports macOS and Linux.
+
+Default detection looks only for existing user configs/profile directories
+(or a Codex CLI on PATH), never projects. It does not launch agents to find
+them. Supported targets, relative to `$HOME`:
+
+| `--client` | User config |
+| --- | --- |
+| `claude-code` | `.claude.json` (also detected by `.claude/`) |
+| `claude-desktop` | `Library/Application Support/Claude/claude_desktop_config.json` on macOS; `.config/Claude/claude_desktop_config.json` on Linux |
+| `cursor` | `.cursor/mcp.json` |
+| `gemini` | `.gemini/settings.json` |
+| `windsurf` | `.codeium/windsurf/mcp_config.json` |
+| `codex` | `.codex/config.toml`, through the official Codex CLI |
+
+Setup is deliberately conservative:
+
+- Only the `nanomon` server entry changes. Other servers and settings are
+  preserved, including exact numeric values; JSON is reformatted with two
+  spaces. Rerunning an already-connected setup is a no-op for its config.
+- Existing changed files get private sibling backups named
+  `<filename>.nanomon-backup-<random>`. New JSON files/backups are mode `0600`
+  and newly created profile directories `0700`. Existing JSON files are also
+  replaced with private files. Backups may contain credentials from other
+  servers: keep them private or delete them once no longer needed.
+- Invalid/non-object/over-1-MiB configs, JSON with comments, symlinked config
+  files/directories, and custom or disabled `nanomon` entries are skipped,
+  not repaired or replaced. Per-client results explain skips; other clients
+  can still connect. Keep clients from editing settings during setup: JSON
+  uses atomic replacement and stale-content checks, not a cross-app lock.
+- Ownership is conservative: the JSON entry must contain only this exact
+  executable's `command` and `args: ["mcp"]`. A moved executable or a customized
+  entry needs manual review/removal; setup will not take it over. Uninstall
+  removes only matching entries, never whole client configs or other servers.
+- Codex is inspected/edited with bounded `codex mcp get/add/remove` commands,
+  never hand-appended TOML or a login shell. Its existing CLI must support
+  `mcp get nanomon --json`. Common native install locations are also checked
+  when a Codex profile exists, because GUI PATHs can be minimal. A wrapper
+  requiring a missing runtime may need terminal setup instead. Codex dry runs
+  execute **no command** and say they would check/update rather than guessing
+  whether an entry already exists. Explicit `status` uses its read command.
+- A set `CODEX_HOME` or `CLAUDE_CONFIG_DIR` skips that client instead of writing
+  to the wrong profile. Configure custom locations manually.
+- `--dry-run` writes nothing, creates no directories/backups/preferences and
+  launches no child process. Successful CLI installs and CLI uninstalls remember
+  the explicit choice in `.nanomon/mcp-setup.json` so subsequent GUI launches
+  do not repeat the offer.
+  This preference contains no monitoring data. Manual setup remains available.
+
+Restart connected clients afterward; their own tool-approval policies still
+apply. Nothing grants an agent extra OS permissions or process-control tools.
+
+### Manual connection
+
 A client configuration (Claude Desktop, Cursor, or another stdio MCP client):
 
 ```json
@@ -148,10 +234,16 @@ can be sensitive, and an agent may send them to its model provider.
 zig build test
 zig build
 python3 tools/check-mcp.py
+python3 tools/check-mcp-setup.py
+# Optional, if Codex is installed: real CLI, still only a temporary HOME.
+python3 tools/check-mcp-setup.py --real-codex
 ```
 
 The tests cover negotiation, the read-only catalog, malformed requests,
 argument limits, filtering, pagination, escaping, unavailable counters,
 history gaps, real samples, an actual stdio client, idle behavior and EOF.
 The smoke client removes `DISPLAY`/`WAYLAND_DISPLAY` on Linux and never
-starts a window on macOS. Both run in CI.
+starts a window on macOS. Setup tests use only temporary homes and fake
+clients, covering first-launch consent, additive merge, exact numbers, limits,
+backups, idempotence, dry-run, undo, opt-out, symlinks, conflicts and delegated
+Codex commands. They never configure real agents. All run in CI.

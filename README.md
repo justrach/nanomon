@@ -78,10 +78,28 @@ sampler as the window. Agents can query system stats, filter/sort/paginate
 processes, inspect a PID, and read timestamped history from their session.
 It never opens a window, listens on a port, or allows process control.
 
-Build it with `zig build`, then configure your MCP client to run the
-**absolute path** to `zig-out/bin/nanomon` with `"args": ["mcp"]`.
-The GUI need not be running. Sampling is on demand (no idle polling), and
-history belongs to that MCP session, not an existing GUI window.
+Build it with `zig build`, then launch the installed app: the first GUI
+launch offers **Connect agents** for detected Claude Code, Claude Desktop,
+Cursor, Gemini CLI, Windsurf and Codex profiles. One click adds nanomon without
+replacing other servers/settings. **Not now** remembers your choice; the
+sidebar's **Agent connections…** button lets you revisit it. On macOS, move
+the app to Applications first—copying a DMG cannot run an install hook.
+
+Terminal/installer equivalents (after placing the binary at its final path):
+
+```sh
+./zig-out/bin/nanomon mcp install --dry-run
+./zig-out/bin/nanomon mcp install
+./zig-out/bin/nanomon mcp status
+./zig-out/bin/nanomon mcp uninstall  # undo only nanomon's matching entries
+```
+
+Setup backs up changed configs, skips malformed/custom/disabled entries, and
+never silently opts agents in. Codex uses its official CLI to preserve TOML.
+Alternatively, configure any MCP client with the **absolute executable path**
+and `"args": ["mcp"]`. The GUI need not be running. Sampling is on demand
+(no idle polling); history belongs to that session, not an existing GUI window.
+Normal MCP startup never modifies client configs.
 
 See [MCP setup, tools, scales and security](docs/mcp.md) for the client
 configuration and test command. This feature is newer than v0.1.9; use a

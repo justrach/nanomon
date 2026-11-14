@@ -40,6 +40,7 @@ pub fn sidebar(c: *ui.Context, a: *App, k: theme.Colors) void {
     item(c, a, k, .{ .page = .apps, .icon = "square.grid.3x3", .name = "Apps" }, k.purple, c.print("{d}", .{a.apps.items.len}));
     item(c, a, k, .{ .page = .about, .icon = "desktopcomputer", .name = "About This Mac" }, k.gray, "");
     ui.spacer(c);
+    @import("view_agent_setup.zig").button(c, a, k);
     update(c, a, k);
     status(c, a, k);
 }

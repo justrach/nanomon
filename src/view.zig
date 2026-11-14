@@ -51,6 +51,7 @@ pub fn view(a: *App, c: *ui.Context) void {
             .apps => pages.apps.page(c, a, k),
             .about => pages.about.page(c, a, k),
         }
+        @import("view_agent_setup.zig").banner(c, a, k);
     }
     sheet.menu(c, a, k);
     sheet.inspector(c, a, k);
