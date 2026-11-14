@@ -89,6 +89,7 @@ pub fn extras(s: *Sampler, t: *Text, reg: *iokit.Registry) void {
     sy.thermal = thermal();
     network(s, t);
     const g = reg.gpu();
+    sy.available.gpu = g.available;
     sy.gpu = g.device;
     sy.gpu_renderer = g.renderer;
     sy.gpu_tiler = g.tiler;
@@ -127,6 +128,7 @@ fn network(s: *Sampler, _: *Text) void {
         in += std.mem.readInt(u64, buf[116..124], .little);
         out += std.mem.readInt(u64, buf[124..132], .little);
     }
+    s.system.available.network = true;
     s.system.net_in = in;
     s.system.net_out = out;
 }

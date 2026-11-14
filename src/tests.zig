@@ -21,6 +21,7 @@ test {
     _ = @import("graff.zig");
     _ = @import("tests_select.zig");
     _ = @import("tests_menubar.zig");
+    _ = @import("tests_mcp.zig");
 }
 
 extern "c" fn getpid() c_int;

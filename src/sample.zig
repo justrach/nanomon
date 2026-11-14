@@ -18,7 +18,7 @@ pub const Ticks = struct { user: u64 = 0, system: u64 = 0, idle: u64 = 0 };
 
 pub const Notify = struct { ctx: *anyopaque, func: *const fn (*anyopaque) void };
 
-const PsSeen = struct { time_ns: u64, wall: f64, cpu: f32 = 0 };
+const PsSeen = struct { time_ns: u64, wall: f64, cpu: f32 = 0, has_delta: bool = false };
 
 /// A process's counters at the last sample.
 const Prev = struct { time_ns: u64, wakeups: u64 };
@@ -72,6 +72,9 @@ pub const Sampler = struct {
     users: std.AutoHashMapUnmanaged(u32, []u8) = .empty,
     state: os.State = .{},
     samples: usize = 0,
+    /// The UI uses asynchronous ps; headless MCP collects it synchronously
+    /// so it needs neither a window nor an event loop while stdin is idle.
+    async_ps: bool = true,
     /// Told when figures come between samples (ps's answers).
     on_update: ?Notify = null,
     /// What ps said of a process the last time it changed: its CPU time,
@@ -125,7 +128,15 @@ pub const Sampler = struct {
     /// Takes a sample at `now` (seconds).
     pub fn sample(s: *Sampler, now: f64) void {
         s.procs.clearRetainingCapacity();
+        const previous = s.system.available;
+        s.system.available = .{};
         const ticks = os.collect(s);
+        const current = s.system.available;
+        s.system.rate_available = .{
+            .cpu = s.samples > 0 and previous.cpu and current.cpu,
+            .disk = s.samples > 0 and previous.disk and current.disk,
+            .network = s.samples > 0 and previous.network and current.network,
+        };
         const wall = now - s.prev_wall;
         var next: std.AutoHashMapUnmanaged(i32, Prev) = .empty;
         next.ensureTotalCapacity(s.gpa, @intCast(s.procs.items.len)) catch {};
@@ -138,16 +149,19 @@ pub const Sampler = struct {
                 var seen: PsSeen = s.ps_seen.get(p.pid) orelse .{ .time_ns = p.cpu_time_ns, .wall = now };
                 if (p.cpu_time_ns != seen.time_ns and now > seen.wall) {
                     seen.cpu = processCpu(p.cpu_time_ns -| seen.time_ns, now - seen.wall);
+                    seen.has_delta = true;
                     seen.time_ns = p.cpu_time_ns;
                     seen.wall = now;
                 }
                 p.cpu = seen.cpu;
+                p.cpu_known = seen.has_delta;
                 next_seen.put(s.gpa, p.pid, seen) catch {};
                 continue;
             }
             next.putAssumeCapacity(p.pid, .{ .time_ns = p.cpu_time_ns, .wakeups = p.wakeups_total });
             if (s.samples > 0 and wall > 0) if (s.prev.get(p.pid)) |before| {
                 p.cpu = processCpu(p.cpu_time_ns -| before.time_ns, wall);
+                p.cpu_known = true;
                 p.wakeups = @intCast(@min(std.math.maxInt(u32), p.wakeups_total -| before.wakeups));
             };
         }

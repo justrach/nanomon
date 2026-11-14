@@ -71,6 +71,22 @@ cd nanoui/apps/nanomon
 zig build run --fork=../..
 ```
 
+## For agents: read-only MCP
+
+The MCP branch adds `nanomon mcp`, a headless stdio server using the same
+sampler as the window. Agents can query system stats, filter/sort/paginate
+processes, inspect a PID, and read timestamped history from their session.
+It never opens a window, listens on a port, or allows process control.
+
+Build it with `zig build`, then configure your MCP client to run the
+**absolute path** to `zig-out/bin/nanomon` with `"args": ["mcp"]`.
+The GUI need not be running. Sampling is on demand (no idle polling), and
+history belongs to that MCP session, not an existing GUI window.
+
+See [MCP setup, tools, scales and security](docs/mcp.md) for the client
+configuration and test command. This feature is newer than v0.1.9; use a
+build of the MCP branch, not the v0.1.9 release binary.
+
 ## Pages
 
 <p align="center">
@@ -216,6 +232,11 @@ src/view_popover.zig  the panel under the menu bar
 src/app.zig           state: sampling, order, search, selection, quitting
 src/model.zig         processes, the system, sorting, formatting
 src/sample.zig        a sample: CPU percentages, history, names, users
+src/mcp.zig           read-only MCP session: JSON-RPC, negotiation, discovery, calls
+src/mcp_stdio.zig     headless stdio and on-demand sampling (no event loop or GUI)
+src/mcp_tools.zig     validated monitoring queries and JSON views
+src/mcp_catalog.zig   tool schemas and descriptions
+src/tests_mcp.zig     protocol, data views and real headless sampling tests
 src/sample_mac.zig    libproc, Mach and sysctl
 src/icons.zig         app icons for the table (macOS)
 src/ps.zig            /bin/ps for the processes nanomon may not read

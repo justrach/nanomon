@@ -15,6 +15,8 @@ pub const Process = struct {
     bundle: []const u8 = "",
     /// Percent of one core over the last interval.
     cpu: f32 = 0,
+    /// A CPU percentage needs a previous sample of this PID.
+    cpu_known: bool = false,
     cpu_time_ns: u64 = 0,
     /// Its memory footprint (on macOS, what Activity Monitor shows).
     memory: u64 = 0,
@@ -30,6 +32,8 @@ pub const Process = struct {
     /// Bytes it has read from and written to disk.
     disk_read: u64 = 0,
     disk_written: u64 = 0,
+    /// Disk counters were read successfully (zero is then a real value).
+    disk_known: bool = false,
 
     /// Whether nanomon read it itself: threads, wake ups and disk known.
     pub fn detailed(p: Process) bool {
@@ -37,7 +41,13 @@ pub const Process = struct {
     }
 };
 
+pub const Availability = struct { cpu: bool = false, memory: bool = false, disk: bool = false, network: bool = false, gpu: bool = false };
+
 pub const System = struct {
+    /// Which aggregate sources answered, and which have two valid samples
+    /// for their percentages/rates. The UI keeps its existing zero fallback.
+    available: Availability = .{},
+    rate_available: Availability = .{},
     cores: u32 = 1,
     /// Percent of all cores, by kind.
     cpu_user: f32 = 0,
