@@ -155,12 +155,19 @@ interfaces:
     routing socket gives only 32 bits to anyone but root.
 - **Linux**: `/proc/<pid>/stat`, `statm`, `status` and `io`, plus
   `/proc/stat` (each core too), `/proc/meminfo`, `/proc/diskstats`,
-  `/proc/loadavg`, `/proc/uptime` and `/proc/net/dev`. There's no GPU page
-  data there.
+  `/proc/loadavg`, `/proc/uptime` and `/proc/net/dev`. Processes whose disk
+  counters are restricted by Linux's ptrace permissions still appear;
+  unavailable counters stay at zero, without logging a stack trace. There's
+  no GPU page data there.
 - **Windows**: not yet. The app builds and says so.
 
 % CPU is a share of one core over the last interval (two seconds), as
-Activity Monitor counts it, so a busy process can pass 100%.
+Activity Monitor counts it, so a busy process can pass 100%. Some Linux
+monitors (including XFCE Task Manager in whole-machine mode) divide this
+by the number of logical CPUs instead: nanomon's 25% on four logical CPUs
+is 6.25% on that scale. Compare the same interval and scale; nanomon's
+machine and per-core graphs each run from 0 to 100%. The Processes page
+shows the per-core scale below its CPU table.
 
 ## Smooth and small
 
@@ -206,6 +213,7 @@ src/sample_mac.zig    libproc, Mach and sysctl
 src/icons.zig         app icons for the table (macOS)
 src/ps.zig            /bin/ps for the processes nanomon may not read
 src/sample_linux.zig  /proc
+src/sample_proc_linux.zig bounded virtual-file reads, including read-time permission errors
 src/sample_none.zig   elsewhere
 src/sample_sys_mac.zig   chip, cores, load, uptime, threads, thermal, network
 src/sample_iokit_mac.zig the disks and the GPU, from IOKit

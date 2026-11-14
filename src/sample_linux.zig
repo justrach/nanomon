@@ -7,6 +7,7 @@ const sample = @import("sample.zig");
 const model = @import("model.zig");
 const Sampler = sample.Sampler;
 const sys = @import("sample_sys_linux.zig");
+const proc = @import("sample_proc_linux.zig");
 
 extern "c" fn sysconf(name: c_int) c_long;
 
@@ -43,7 +44,7 @@ pub fn collect(s: *Sampler) sample.Ticks {
     var path: [64]u8 = undefined;
     while (it.next(s.io) catch null) |e| {
         const pid = std.fmt.parseInt(i32, e.name, 10) catch continue;
-        const stat = dir.readFile(s.io, std.fmt.bufPrint(&path, "{d}/stat", .{pid}) catch continue, &buf) catch continue;
+        const stat = proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/stat", .{pid}) catch continue, &buf) catch continue;
         const open = std.mem.indexOfScalar(u8, stat, '(') orelse continue;
         const close = std.mem.lastIndexOfScalar(u8, stat, ')') orelse continue;
         const comm = stat[open + 1 .. close];
@@ -65,11 +66,11 @@ pub fn collect(s: *Sampler) sample.Ticks {
         var p: model.Process = .{ .pid = pid, .ppid = ppid, .uid = uid, .name = s.name(pid, Namer{ .comm = comm }).name, .user = s.user(uid) };
         p.cpu_time_ns = (utime + stime) * 1_000_000_000 / st.hz;
         p.threads = std.fmt.parseInt(u32, fields[17], 10) catch 0;
-        if (dir.readFile(s.io, std.fmt.bufPrint(&path, "{d}/io", .{pid}) catch continue, &buf)) |io| {
+        if (proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/io", .{pid}) catch continue, &buf)) |io| {
             p.disk_read = field(io, "read_bytes:");
             p.disk_written = field(io, "write_bytes:");
         } else |_| {}
-        if (dir.readFile(s.io, std.fmt.bufPrint(&path, "{d}/statm", .{pid}) catch continue, &buf)) |statm| {
+        if (proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/statm", .{pid}) catch continue, &buf)) |statm| {
             var m = std.mem.tokenizeScalar(u8, statm, ' ');
             _ = m.next();
             p.memory = (std.fmt.parseInt(u64, m.next() orelse "0", 10) catch 0) * st.page;
@@ -100,7 +101,7 @@ fn field(text: []const u8, key: []const u8) u64 {
 /// partitions and virtual devices left out.
 fn disks(s: *Sampler) void {
     var buf: [16384]u8 = undefined;
-    const text = std.Io.Dir.cwd().readFile(s.io, "/proc/diskstats", &buf) catch return;
+    const text = proc.readFile(s.io, .cwd(), "/proc/diskstats", &buf) catch return;
     var t: [4]u64 = @splat(0);
     var lines = std.mem.tokenizeScalar(u8, text, '\n');
     while (lines.next()) |line| {
@@ -133,7 +134,7 @@ fn wholeDisk(dev: []const u8) bool {
 fn uidOf(s: *Sampler, dir: std.Io.Dir, pid: i32) u32 {
     var buf: [4096]u8 = undefined;
     var path: [64]u8 = undefined;
-    const status = dir.readFile(s.io, std.fmt.bufPrint(&path, "{d}/status", .{pid}) catch return 0, &buf) catch return 0;
+    const status = proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/status", .{pid}) catch return 0, &buf) catch return 0;
     const at = std.mem.indexOf(u8, status, "\nUid:") orelse return 0;
     var f = std.mem.tokenizeAny(u8, status[at + 5 ..], " \t\n");
     return std.fmt.parseInt(u32, f.next() orelse "0", 10) catch 0;
@@ -141,7 +142,7 @@ fn uidOf(s: *Sampler, dir: std.Io.Dir, pid: i32) u32 {
 
 fn ticks(s: *Sampler) sample.Ticks {
     var buf: [8192]u8 = undefined;
-    const stat = std.Io.Dir.cwd().readFile(s.io, "/proc/stat", &buf) catch return .{};
+    const stat = proc.readFile(s.io, .cwd(), "/proc/stat", &buf) catch return .{};
     var lines = std.mem.tokenizeScalar(u8, stat, '\n');
     var cores: u32 = 0;
     var t: sample.Ticks = .{};
@@ -166,7 +167,7 @@ fn ticks(s: *Sampler) sample.Ticks {
 
 fn memory(s: *Sampler) void {
     var buf: [8192]u8 = undefined;
-    const info = std.Io.Dir.cwd().readFile(s.io, "/proc/meminfo", &buf) catch return;
+    const info = proc.readFile(s.io, .cwd(), "/proc/meminfo", &buf) catch return;
     var total: u64 = 0;
     var free: u64 = 0;
     var cached: u64 = 0;

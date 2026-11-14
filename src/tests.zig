@@ -135,6 +135,7 @@ test "the processes page: sorting, the filter, the inspector and the quit sheet"
     defer t.deinit();
     t.settle(2);
     // Busiest first; what nobody could read, last.
+    try std.testing.expect(t.hasText("% CPU: 100% = one fully busy core; processes can exceed 100%."));
     try std.testing.expect(below(&t, "Safari", "Mail"));
     try std.testing.expect(below(&t, "kernel_task", "secretd"));
     try t.screenshot("/tmp/nanomon-processes.png");

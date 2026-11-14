@@ -137,7 +137,7 @@ pub const Sampler = struct {
                 // between two answers that differ, kept until the next.
                 var seen: PsSeen = s.ps_seen.get(p.pid) orelse .{ .time_ns = p.cpu_time_ns, .wall = now };
                 if (p.cpu_time_ns != seen.time_ns and now > seen.wall) {
-                    seen.cpu = @floatCast(@as(f64, @floatFromInt(p.cpu_time_ns -| seen.time_ns)) / ((now - seen.wall) * 1e9) * 100);
+                    seen.cpu = processCpu(p.cpu_time_ns -| seen.time_ns, now - seen.wall);
                     seen.time_ns = p.cpu_time_ns;
                     seen.wall = now;
                 }
@@ -147,8 +147,7 @@ pub const Sampler = struct {
             }
             next.putAssumeCapacity(p.pid, .{ .time_ns = p.cpu_time_ns, .wakeups = p.wakeups_total });
             if (s.samples > 0 and wall > 0) if (s.prev.get(p.pid)) |before| {
-                const d: f64 = @floatFromInt(p.cpu_time_ns -| before.time_ns);
-                p.cpu = @floatCast(d / (wall * 1e9) * 100);
+                p.cpu = processCpu(p.cpu_time_ns -| before.time_ns, wall);
                 p.wakeups = @intCast(@min(std.math.maxInt(u32), p.wakeups_total -| before.wakeups));
             };
         }
@@ -242,6 +241,20 @@ pub const Sampler = struct {
         for (gone.items) |pid| if (s.names.fetchRemove(pid)) |e| s.gpa.free(e.value.owned);
     }
 };
+
+/// A share of one core, not of all cores: 1 CPU second over 2 wall
+/// seconds is 50% on any machine. The machine's graphs use 0–100% total.
+fn processCpu(cpu_ns: u64, wall: f64) f32 {
+    return @floatCast(@as(f64, @floatFromInt(cpu_ns)) / (wall * 1e9) * 100);
+}
+
+test "process CPU is per core, may exceed 100%, and uses the actual interval" {
+    try std.testing.expectEqual(@as(f32, 25), processCpu(500_000_000, 2));
+    try std.testing.expectEqual(@as(f32, 100), processCpu(2_000_000_000, 2));
+    try std.testing.expectEqual(@as(f32, 200), processCpu(4_000_000_000, 2));
+    try std.testing.expectEqual(@as(f32, 50), processCpu(2_000_000_000, 4));
+    try std.testing.expectEqual(@as(f32, 0), processCpu(0, 2));
+}
 
 /// The name shown for a program at `path`: the app for anything inside
 /// an app's bundle ("Safari", "Google Chrome Helper (Renderer)"), else the

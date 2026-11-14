@@ -5,6 +5,7 @@
 const std = @import("std");
 const sample = @import("sample.zig");
 const Sampler = sample.Sampler;
+const proc = @import("sample_proc_linux.zig");
 
 /// The machine's names, kept for `Info`'s slices.
 pub const Text = struct {
@@ -14,7 +15,7 @@ pub const Text = struct {
 };
 
 fn read(s: *Sampler, path: []const u8, buf: []u8) []const u8 {
-    return std.Io.Dir.cwd().readFile(s.io, path, buf) catch "";
+    return proc.readFile(s.io, .cwd(), path, buf) catch "";
 }
 
 /// The value of the first line starting with `key`, after its separator.

@@ -23,7 +23,7 @@ pub fn page(c: *ui.Context, a: *App, k: theme.Colors) void {
         defer h.end();
         filter(c, a, k);
         const tabs = [_]model.Tab{ .cpu, .memory, .disk };
-        if (kit.segmented(c, k, &.{ "CPU", "Memory", "Disk" }, @intFromEnum(a.tab))) |i| a.show(tabs[i]);
+        if (kit.segmented(c, k, &.{ "CPU", "Memory", "Disk" }, @backingInt(a.tab))) |i| a.show(tabs[i]);
         search(c, a, k, 170);
         const chosen = if (a.selected) |pid| a.find(pid) != null else false;
         if (tool(c, k, "info.circle", chosen)) a.inspect = a.selected;
@@ -31,6 +31,11 @@ pub fn page(c: *ui.Context, a: *App, k: theme.Colors) void {
     }
     _ = c.leaf(.{ .width = .fill, .height = .{ .px = 1 }, .background = k.separator }, .none, null);
     table.table(c, a, k);
+    if (a.tab == .cpu) {
+        const scale = ui.div(c).row().wFull().h(24).itemsCenter().px(16);
+        defer scale.end();
+        ui.text(c, "% CPU: 100% = one fully busy core; processes can exceed 100%.", .{ .size = 11, .color = k.secondary });
+    }
     actions(c, a, k);
 }
 
