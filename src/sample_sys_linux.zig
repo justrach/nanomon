@@ -62,7 +62,9 @@ pub fn extras(s: *Sampler) void {
     // net/dev: "  eth0: rx_bytes rx_packets … (8 fields) tx_bytes …".
     var in: u64 = 0;
     var out: u64 = 0;
-    var lines = std.mem.tokenizeScalar(u8, read(s, "/proc/net/dev", &buf), '\n');
+    const net = read(s, "/proc/net/dev", &buf);
+    sy.available.network = net.len > 0;
+    var lines = std.mem.tokenizeScalar(u8, net, '\n');
     while (lines.next()) |line| {
         const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
         if (std.mem.eql(u8, std.mem.trim(u8, line[0..colon], " "), "lo")) continue;

@@ -69,6 +69,7 @@ pub fn collect(s: *Sampler) sample.Ticks {
         if (proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/io", .{pid}) catch continue, &buf)) |io| {
             p.disk_read = field(io, "read_bytes:");
             p.disk_written = field(io, "write_bytes:");
+            p.disk_known = true;
         } else |_| {}
         if (proc.readFile(s.io, dir, std.fmt.bufPrint(&path, "{d}/statm", .{pid}) catch continue, &buf)) |statm| {
             var m = std.mem.tokenizeScalar(u8, statm, ' ');
@@ -118,6 +119,7 @@ fn disks(s: *Sampler) void {
         t[2] += v[2] * 512;
         t[3] += v[6] * 512;
     }
+    s.system.available.disk = true;
     s.system.reads = t[0];
     s.system.writes = t[1];
     s.system.read_bytes = t[2];
@@ -158,7 +160,10 @@ fn ticks(s: *Sampler) sample.Ticks {
         if (one_core) {
             if (cores < sample.max_cores) s.core_ticks[cores] = these;
             cores += 1;
-        } else t = these;
+        } else {
+            t = these;
+            s.system.available.cpu = true;
+        }
     }
     s.system.cores = @max(1, cores);
     s.cores = @min(cores, sample.max_cores);
@@ -185,6 +190,7 @@ fn memory(s: *Sampler) void {
         if (std.mem.eql(u8, key, "SwapFree")) swap_free = kb;
         if (std.mem.eql(u8, key, "MemTotal")) total = kb else if (std.mem.eql(u8, key, "MemFree")) free = kb else if (std.mem.eql(u8, key, "Buffers") or std.mem.eql(u8, key, "Cached") or std.mem.eql(u8, key, "SReclaimable")) cached += kb;
     }
+    s.system.available.memory = total > 0;
     s.system.mem_total = total;
     s.system.mem_cached = cached;
     s.system.mem_app = total -| free -| cached;

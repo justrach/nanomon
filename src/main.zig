@@ -8,6 +8,11 @@ const App = @import("app.zig").App;
 const menubar = @import("menubar.zig");
 
 pub fn main(init: std.process.Init) !void {
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
+    if (args.len > 1 and std.mem.eql(u8, args[1], "mcp")) {
+        if (args.len > 2) return @import("mcp_setup_cli.zig").run(init, args[2..]);
+        return @import("mcp_stdio.zig").run(init);
+    }
     // In the menu bar, closing the window leaves nanomon running there.
     const app = try nanoui.App.create(init, .{ .name = "nanomon", .quit_on_last_window_closed = !menubar.supported });
     defer app.destroy();
@@ -15,6 +20,7 @@ pub fn main(init: std.process.Init) !void {
     defer a.deinit();
     a.nanoapp = app;
     a.listen(null);
+    a.agents.configure(init, args);
     if (menubar.supported) a.clock = menubar.clock;
     a.openWindow();
     var bar: menubar.MenuBar = .{ .a = &a, .app = app };

@@ -149,6 +149,7 @@ pub fn known(s: *Sampler, pid: i32) ?ps_mod.Known {
 pub fn collect(s: *Sampler) sample.Ticks {
     const st = &s.state;
     if (st.num == 0) once(st);
+    if (!s.async_ps) st.ps.refreshSync(s.gpa, s.io, s.samples);
     if (st.pids.len == 0) st.pids = s.gpa.alloc(c_int, 16384) catch return .{};
     const n_pids: usize = @intCast(@max(0, proc_listallpids(st.pids.ptr, @intCast(st.pids.len * @sizeOf(c_int)))));
     s.procs.ensureTotalCapacity(s.gpa, n_pids) catch return .{};
@@ -176,6 +177,7 @@ pub fn collect(s: *Sampler) sample.Ticks {
             p.wakeups_total = if (comptime builtin.cpu.arch == .aarch64) ru.interrupt_wkups else ru.pkg_idle_wkups;
             p.disk_read = ru.diskio_bytesread;
             p.disk_written = ru.diskio_byteswritten;
+            p.disk_known = true;
             if (proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &ti, @sizeOf(TaskInfo)) == @sizeOf(TaskInfo)) p.threads = @intCast(@max(0, ti.threadnum));
             p.known = true;
         } else if (st.ps.get(pid)) |said| {
@@ -188,7 +190,7 @@ pub fn collect(s: *Sampler) sample.Ticks {
         s.procs.appendAssumeCapacity(p);
     }
     st.ps.notify = s.on_update;
-    st.ps.refresh(s.gpa, s.samples);
+    if (s.async_ps) st.ps.refresh(s.gpa, s.samples);
     system(s);
     if (!st.known_machine) {
         st.known_machine = true;
@@ -232,12 +234,14 @@ fn system(s: *Sampler) void {
     len = @sizeOf(c_int);
     if (sysctlbyname("kern.memorystatus_level", &level, &len, null, 0) == 0) s.system.pressure = @floatFromInt(std.math.clamp(100 - level, 0, 100));
     const io = st.reg.disks();
+    s.system.available.disk = io.available;
     s.system.reads = io.reads;
     s.system.writes = io.writes;
     s.system.read_bytes = io.read_bytes;
     s.system.written_bytes = io.written_bytes;
     if (host_statistics64(mach_host_self(), HOST_VM_INFO64, &vm, &count) != 0) return;
     const page: u64 = vm_kernel_page_size;
+    s.system.available.memory = st.mem_total > 0;
     s.system.mem_app = (@as(u64, vm.internal_page_count) -| vm.purgeable_count) * page;
     s.system.mem_wired = @as(u64, vm.wire_count) * page;
     s.system.mem_compressed = @as(u64, vm.compressor_page_count) * page;
@@ -268,5 +272,6 @@ fn ticks(s: *Sampler) sample.Ticks {
         t.idle += core.idle;
     }
     s.cores = @min(cpus, sample.max_cores);
+    s.system.available.cpu = cpus > 0;
     return t;
 }

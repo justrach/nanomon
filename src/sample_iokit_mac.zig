@@ -22,13 +22,13 @@ extern "c" fn CFRelease(x: CFType) void;
 const utf8 = 0x08000100;
 const sint64 = 4;
 
-pub const Disk = struct { reads: u64 = 0, writes: u64 = 0, read_bytes: u64 = 0, written_bytes: u64 = 0 };
-pub const Gpu = struct { device: f32 = 0, renderer: f32 = 0, tiler: f32 = 0, memory: u64 = 0 };
+pub const Disk = struct { available: bool = false, reads: u64 = 0, writes: u64 = 0, read_bytes: u64 = 0, written_bytes: u64 = 0 };
+pub const Gpu = struct { available: bool = false, device: f32 = 0, renderer: f32 = 0, tiler: f32 = 0, memory: u64 = 0 };
 
 const names = [_][*:0]const u8{
-    "Statistics",          "Operations (Read)",      "Operations (Write)",  "Bytes (Read)",
-    "Bytes (Write)",       "PerformanceStatistics",  "Device Utilization %", "Renderer Utilization %",
-    "Tiler Utilization %", "In use system memory",   "model",               "gpu-core-count",
+    "Statistics",          "Operations (Read)",     "Operations (Write)",   "Bytes (Read)",
+    "Bytes (Write)",       "PerformanceStatistics", "Device Utilization %", "Renderer Utilization %",
+    "Tiler Utilization %", "In use system memory",  "model",                "gpu-core-count",
 };
 const K = enum(usize) { stats, op_read, op_write, bytes_read, bytes_write, perf, device, renderer, tiler, gpu_memory, model, gpu_cores };
 
@@ -48,7 +48,7 @@ pub const Registry = struct {
             for (names, 0..) |n, i| made[i] = CFStringCreateWithCString(null, n, utf8) orelse return null;
             r.keys = made;
         }
-        return r.keys.?[@intFromEnum(k)];
+        return r.keys.?[@backingInt(k)];
     }
 
     pub fn disks(r: *Registry) Disk {
@@ -64,6 +64,7 @@ pub const Registry = struct {
             defer _ = IOObjectRelease(entry);
             const d = IORegistryEntryCreateCFProperty(entry, stats, null, 0) orelse continue;
             defer CFRelease(d);
+            t.available = true;
             t.reads += number(d, r.key(.op_read).?);
             t.writes += number(d, r.key(.op_write).?);
             t.read_bytes += number(d, r.key(.bytes_read).?);
@@ -79,6 +80,7 @@ pub const Registry = struct {
         const d = IORegistryEntryCreateCFProperty(entry, r.key(.perf) orelse return .{}, null, 0) orelse return .{};
         defer CFRelease(d);
         return .{
+            .available = CFDictionaryGetValue(d, r.key(.device).?) != null,
             .device = @floatFromInt(number(d, r.key(.device).?)),
             .renderer = @floatFromInt(number(d, r.key(.renderer).?)),
             .tiler = @floatFromInt(number(d, r.key(.tiler).?)),

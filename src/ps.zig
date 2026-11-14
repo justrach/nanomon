@@ -44,6 +44,27 @@ pub const Ps = struct {
         return p.known.get(pid);
     }
 
+    /// The headless sampler has no event loop. Bound both the child and
+    /// its output, capture stderr, and never write diagnostics to MCP stdout.
+    pub fn refreshSync(p: *Ps, gpa: std.mem.Allocator, io: std.Io, n: usize) void {
+        if (n % every != 0) return;
+        var env: std.process.Environ.Map = .init(gpa);
+        defer env.deinit();
+        env.put("LC_ALL", "C") catch return;
+        const result = std.process.run(gpa, io, .{
+            .argv = &.{ "/bin/ps", "-axo", "pid=,rss=,time=" },
+            .environ_map = &env,
+            .stdout_limit = .limited(2 << 20),
+            .stderr_limit = .limited(4096),
+            .timeout = .{ .duration = .{ .raw = .fromSeconds(2), .clock = .awake } },
+        }) catch return;
+        defer gpa.free(result.stdout);
+        defer gpa.free(result.stderr);
+        if (result.term != .exited or result.term.exited != 0) return;
+        p.known.clearRetainingCapacity();
+        parse(gpa, &p.known, result.stdout);
+    }
+
     /// Asks ps again on every `every`th sample, if no ask is in flight.
     pub fn refresh(p: *Ps, gpa: std.mem.Allocator, n: usize) void {
         if (p.fd >= 0 or n % every != 0) return;

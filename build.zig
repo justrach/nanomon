@@ -4,12 +4,15 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const nanoui = b.dependency("nanoui", .{ .target = target, .optimize = optimize }).module("nanoui");
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", @import("build.zig.zon").version);
     const mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "nanoui", .module = nanoui }},
     });
+    mod.addOptions("nanomon_options", options);
     // The disks' counters come from IOKit.
     const mac = target.result.os.tag == .macos;
     if (mac) mod.linkFramework("IOKit", .{});
@@ -35,6 +38,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{.{ .name = "nanoui", .module = nanoui }},
     }) });
+    tests.root_module.addOptions("nanomon_options", options);
     if (mac) tests.root_module.linkFramework("IOKit", .{});
     b.step("test", "Run nanomon tests").dependOn(&b.addRunArtifact(tests).step);
     // The tests as a program, for another machine (Linux in a container).
