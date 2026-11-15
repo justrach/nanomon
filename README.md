@@ -256,6 +256,16 @@ Apple's private interfaces.
   which asks the process to close; Force Quit sends SIGKILL.
 - **Close**: Escape closes the open sheet or menu, then clears the selection.
 
+## Performance and correctness
+
+The headless real-page benchmark checks the 8.33 ms budget for 120 Hz without
+opening a window. Top-process rankings are memoized between source changes;
+GUI temperature I/O runs on a single event-driven worker, while MCP remains
+synchronous. Lean checks cache/filter/publication models; Zig tests exercise
+selection, rendering and worker lifecycle. See [performance measurements](docs/performance.md)
+and [slow-frame profiling](docs/tail-latency.md) for reproducible commands, all
+retained tails, and the proof boundaries. Sustained 120 FPS is not established.
+
 ## Files
 
 ```

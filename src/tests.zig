@@ -17,13 +17,21 @@ test {
     _ = @import("sample.zig");
     _ = @import("app.zig");
     if (builtin.os.tag == .macos) _ = @import("ps.zig");
-    if (builtin.os.tag == .macos) _ = @import("sample_temp_mac.zig");
+    if (builtin.os.tag == .macos) {
+        _ = @import("sample_temp_mac.zig");
+        _ = @import("tests_temp_async.zig");
+    }
     _ = @import("graff.zig");
     _ = @import("tests_select.zig");
     _ = @import("tests_menubar.zig");
     _ = @import("tests_mcp.zig");
     _ = @import("tests_mcp_setup.zig");
     _ = @import("updates.zig");
+    _ = @import("tests_top_processes.zig");
+    _ = @import("bench_trace.zig");
+    _ = @import("bench_pace.zig");
+    _ = @import("sample_profile.zig");
+    _ = @import("tests_temperature.zig");
 }
 
 extern "c" fn getpid() c_int;

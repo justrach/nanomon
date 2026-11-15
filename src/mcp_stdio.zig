@@ -19,7 +19,7 @@ pub const Provider = struct {
     interval_seconds: ?f64 = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io) Provider {
-        return .{ .sampler = .{ .gpa = gpa, .io = io, .async_ps = false } };
+        return .{ .sampler = .{ .gpa = gpa, .io = io, .async_ps = false, .async_temperature = false } };
     }
 
     pub fn deinit(p: *Provider) void {

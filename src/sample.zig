@@ -75,11 +75,21 @@ pub const Sampler = struct {
     /// The UI uses asynchronous ps; headless MCP collects it synchronously
     /// so it needs neither a window nor an event loop while stdin is idle.
     async_ps: bool = true,
+    /// The GUI opts in; headless MCP keeps each temperature read synchronous.
+    async_temperature: bool = false,
+    on_temperature_update: ?Notify = null,
+    /// Opt-in macOS phase timings for the headless sampling benchmark only.
+    collection_timings: ?*@import("sample_profile.zig").Timings = null,
     /// Told when figures come between samples (ps's answers).
     on_update: ?Notify = null,
     /// What ps said of a process the last time it changed: its CPU time,
     /// when that was, and the percent worked out from it.
     ps_seen: std.AutoHashMapUnmanaged(i32, PsSeen) = .empty,
+
+    /// Publish a completed temperature snapshot, never starting another read.
+    pub fn refreshTemperatures(s: *Sampler) void {
+        if (comptime @hasDecl(os, "refillTemperatures")) os.refillTemperatures(s);
+    }
 
     pub fn deinit(s: *Sampler) void {
         s.procs.deinit(s.gpa);

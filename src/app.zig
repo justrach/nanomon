@@ -93,6 +93,7 @@ pub const Graph = enum { cpu, memory, gpu, disk, network };
 pub const App = struct {
     sampler: sample.Sampler,
     icons: icons.Icons,
+    top_processes: @import("top_processes.zig").Cache = .{},
     /// Samples by itself (tests fill it instead).
     live: bool = true,
     last: f64 = -1e9,
@@ -162,13 +163,14 @@ pub const App = struct {
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io) App {
         const uid: u32 = if (comptime builtin.os.tag != .windows) getuid() else 0;
-        return .{ .sampler = .{ .gpa = gpa, .io = io }, .icons = .{ .gpa = gpa }, .uid = uid };
+        return .{ .sampler = .{ .gpa = gpa, .io = io, .async_temperature = true }, .icons = .{ .gpa = gpa }, .uid = uid };
     }
 
     /// Hears of ps's answers; `a` must stay where it is from now on.
     pub fn listen(a: *App, window: ?*nanoui.Window) void {
         a.window = window;
         a.sampler.on_update = .{ .ctx = a, .func = answered };
+        a.sampler.on_temperature_update = .{ .ctx = a, .func = temperaturesAnswered };
         a.graff.notify = .{ .ctx = a, .func = graffAnswered };
         a.agents.notify = .{ .ctx = a, .func = graffAnswered };
     }
@@ -212,6 +214,20 @@ pub const App = struct {
         if (a.window) |w| w.redraw();
     }
 
+    fn temperaturesAnswered(ctx: *anyopaque) void {
+        const a: *App = @ptrCast(@alignCast(ctx));
+        if (a.paused) {
+            a.sampler.system.temperature_pending = false;
+            return;
+        }
+        a.sampler.refreshTemperatures();
+        if (a.window) |w| w.redraw();
+        if (a.menubar) |m| {
+            m.update();
+            if (m.popover) |p| if (p.isVisible()) p.redraw();
+        }
+    }
+
     fn answered(ctx: *anyopaque) void {
         const a: *App = @ptrCast(@alignCast(ctx));
         a.fresh = true;
@@ -235,6 +251,7 @@ pub const App = struct {
             if (a.dirty) a.order();
             return 3600;
         }
+        a.sampler.refreshTemperatures();
         if (a.live and now - a.last >= interval) {
             a.sampler.sample(now);
             a.last = now;
@@ -254,6 +271,9 @@ pub const App = struct {
 
     /// The table: shown by the filter, matching the search, in order.
     pub fn order(a: *App) void {
+        // Source order breaks top-K ties too: invalidate on sorting/filtering,
+        // not just new samples. Never reuse borrowed strings after a sample.
+        a.top_processes.invalidate();
         a.dirty = false;
         const procs = a.sampler.procs.items;
         model.sort(procs, a.sort, a.ascending);

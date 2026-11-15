@@ -118,6 +118,7 @@ pub const State = struct {
     cores: u32 = 1,
     reg: iokit.Registry = .{},
     sensors: @import("sample_temp_mac.zig").Sensors = .{},
+    sensor_worker: @import("sample_temp_async.zig").Worker = .{},
     text: sys.Text = .{},
     /// What the machine is has been read.
     known_machine: bool = false,
@@ -128,6 +129,7 @@ pub fn deinit(s: *Sampler) void {
     s.state.ps.deinit(s.gpa);
     s.state.reg.deinit();
     s.state.sensors.deinit();
+    s.state.sensor_worker.deinit();
 }
 
 const Namer = struct {
@@ -147,6 +149,7 @@ pub fn known(s: *Sampler, pid: i32) ?ps_mod.Known {
 }
 
 pub fn collect(s: *Sampler) sample.Ticks {
+    var meter = @import("sample_profile.zig").Meter.init(s.io, s.collection_timings);
     const st = &s.state;
     if (st.num == 0) once(st);
     if (!s.async_ps) st.ps.refreshSync(s.gpa, s.io, s.samples);
@@ -191,18 +194,50 @@ pub fn collect(s: *Sampler) sample.Ticks {
     }
     st.ps.notify = s.on_update;
     if (s.async_ps) st.ps.refresh(s.gpa, s.samples);
+    meter.end(.processes);
     system(s);
+    meter.end(.system);
     if (!st.known_machine) {
         st.known_machine = true;
         sys.machine(s, &st.text, &st.reg);
     }
+    meter.end(.machine);
     sys.extras(s, &st.text, &st.reg);
-    const t = st.sensors.read();
+    meter.end(.extras);
+    if (s.async_temperature) {
+        st.sensor_worker.request(s.io, s.on_temperature_update);
+        refillTemperatures(s);
+    } else {
+        applyTemperatures(s, st.sensors.read());
+        s.system.temperature_pending = false;
+        s.system.temperature_sampled_at = @as(f64, @floatFromInt(std.Io.Clock.awake.now(s.io).nanoseconds)) / 1e9;
+    }
+    meter.end(.temperature);
+    const result = ticks(s);
+    meter.end(.ticks);
+    return result;
+}
+
+/// Main-thread-only publication. No HID calls or worker join in this path.
+pub fn refillTemperatures(s: *Sampler) void {
+    if (!s.async_temperature) return;
+    const worker = &s.state.sensor_worker;
+    _ = worker.take();
+    if (worker.latest) |snapshot| {
+        applyTemperatures(s, snapshot.temps);
+        s.system.temperature_sampled_at = snapshot.sampled_at;
+    } else if (worker.failed) {
+        applyTemperatures(s, .{});
+        s.system.temperature_sampled_at = null;
+    }
+    s.system.temperature_pending = worker.pending;
+}
+
+fn applyTemperatures(s: *Sampler, t: @import("sample_temp_mac.zig").Temps) void {
     s.system.cpu_temp = t.cpu;
     s.system.cpu_temp_max = t.cpu_max;
     s.system.gpu_temp = t.gpu;
     s.system.soc_temp = t.soc;
-    return ticks(s);
 }
 
 fn once(st: *State) void {

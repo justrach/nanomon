@@ -132,30 +132,8 @@ pub fn procName(c: *ui.Context, a: *App, k: theme.Colors, p: model.Process, w: f
 }
 
 /// The `out.len` busiest processes by `by` (CPU, memory or bytes written).
-pub fn largest(a: *App, out: []model.Process, by: enum { cpu, memory, written }) usize {
-    var n: usize = 0;
-    for (a.sampler.procs.items) |p| {
-        if (!p.known) continue;
-        const v = key(p, by);
-        if (v <= 0) continue;
-        // Insert in order, the smallest falling off the end.
-        var at = n;
-        while (at > 0 and key(out[at - 1], by) < v) : (at -= 1) {}
-        if (at >= out.len) continue;
-        var j = @min(n, out.len - 1);
-        while (j > at) : (j -= 1) out[j] = out[j - 1];
-        out[at] = p;
-        n = @min(n + 1, out.len);
-    }
-    return n;
-}
-
-fn key(p: model.Process, by: anytype) f64 {
-    return switch (by) {
-        .cpu => p.cpu,
-        .memory => @floatFromInt(p.memory),
-        .written => if (p.detailed()) @floatFromInt(p.disk_written) else 0,
-    };
+pub fn largest(a: *App, out: []model.Process, by: @import("top_processes.zig").By) usize {
+    return a.top_processes.largest(a.sampler.procs.items, out, by);
 }
 
 pub fn gpuPage(c: *ui.Context, a: *App, k: theme.Colors) void {
