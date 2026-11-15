@@ -48,8 +48,16 @@ def main():
         past = time.time() - 30 * 86400
         for name in ("old", "locked"):
             os.utime(root / name, (past, past))
-        executable = root / "nanomon"
-        shutil.copy2(binary, executable)
+        bundle = binary.parents[2]
+        if bundle.suffix == ".app" and (bundle / "Contents/Info.plist").is_file():
+            # Preserve Info.plist / CodeResources for hardened Developer-ID
+            # validation. A signed bundle executable detached into /tmp can
+            # be killed by AMFI; never re-sign it or weaken signature checks.
+            shutil.copytree(bundle, root / "nanomon.app", symlinks=True)
+            executable = root / "nanomon.app/Contents/MacOS" / binary.name
+        else:
+            executable = root / "nanomon"
+            shutil.copy2(binary, executable)
         if sys.platform == "darwin":
             # Block personal files and all non-fixture .git metadata, while
             # leaving system libraries and anonymous stdio pipes available.
