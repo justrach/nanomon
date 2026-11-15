@@ -12,6 +12,7 @@ pub const Data = struct {
     age_ms: i64 = 0,
     interval_seconds: ?f64,
     stamps: []const Stamp,
+    worktrees: @import("worktrees.zig").Snapshot = .{},
 };
 
 pub const Stamp = struct { at_ms: i64, available: model.Availability, rates: model.Availability };
@@ -30,6 +31,7 @@ pub const Metric = enum {
 
 pub const Query = union(enum) {
     system,
+    worktrees: @import("mcp_worktrees.zig").Options,
     processes: struct { query: []const u8 = "", sort_by: model.Sort = .cpu, limit: usize = 20, offset: usize = 0 },
     process: i32,
     history: struct { metric: Metric, max_points: usize = 60 },
@@ -39,6 +41,18 @@ pub const Query = union(enum) {
         if (std.mem.eql(u8, name, "get_system")) {
             try keys(args, &.{});
             return .system;
+        }
+        if (std.mem.eql(u8, name, "list_worktrees")) {
+            try keys(args, &.{ "stale_only", "stale_after_days", "limit", "offset" });
+            var opts: @import("mcp_worktrees.zig").Options = .{};
+            if (args.object.get("stale_only")) |v| {
+                if (v != .bool) return error.InvalidArguments;
+                opts.stale_only = v.bool;
+            }
+            opts.stale_after_days = try integer(args, "stale_after_days", 14, 1, 365);
+            opts.limit = try integer(args, "limit", 50, 1, 200);
+            opts.offset = try integer(args, "offset", 0, 0, 100000);
+            return .{ .worktrees = opts };
         }
         if (std.mem.eql(u8, name, "list_processes")) {
             try keys(args, &.{ "query", "sort_by", "limit", "offset" });
@@ -94,7 +108,7 @@ fn safe(text: []const u8) []const u8 {
     return if (std.unicode.utf8ValidateSlice(text)) text else "[non-UTF-8 metadata]";
 }
 
-fn metadata(d: Data) Meta {
+pub fn metadata(d: Data) Meta {
     return .{
         .sample_count = d.sampler.samples,
         .sampled_at_unix_ms = d.sampled_at_ms,
@@ -162,6 +176,7 @@ pub fn execute(gpa: std.mem.Allocator, q: Query, d: Data) ![]u8 {
     const rates = d.interval_seconds != null and d.sampler.samples > 1;
     switch (q) {
         .system => return system(gpa, d, rates),
+        .worktrees => |opts| return @import("mcp_worktrees.zig").execute(gpa, d, opts),
         .process => |pid| {
             for (d.sampler.procs.items) |p| {
                 if (p.pid == pid) return json.Stringify.valueAlloc(gpa, .{ .meta = metadata(d), .process = process(p, rates) }, .{});
@@ -228,6 +243,7 @@ fn system(gpa: std.mem.Allocator, d: Data, rates: bool) ![]u8 {
             .swap_used_bytes = sy.swap_used,
             .pressure_percent = sy.pressure,
         } else null,
+        .storage = sy.storage,
         .disk = if (sy.available.disk) .{
             .read_operations = sy.reads,
             .write_operations = sy.writes,

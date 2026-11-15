@@ -58,7 +58,7 @@ const State = struct {
 pub fn save(ctx: *anyopaque, out: *std.Io.Writer) anyerror!void {
     const a: *App = @ptrCast(@alignCast(ctx));
     if (a.paused or a.confirm != null or a.confirm_marked or a.marked.count() > 0 or
-        a.graff.state == .running or a.agents.state == .running or a.query.text().len > 1024) return error.Busy;
+        a.graff.state == .running or a.agents.state == .running or a.worktrees.busy or a.worktrees.open or a.query.text().len > 1024) return error.Busy;
     try std.json.Stringify.value(State{
         .main_open = a.window != null,
         .page = a.page,
@@ -152,6 +152,12 @@ test "automatic update waits for paused monitoring and pending user actions" {
     try a.marked.put(std.testing.allocator, 42, {});
     try std.testing.expectError(error.Busy, save(&a, &out.writer));
     a.marked.clearRetainingCapacity();
+    a.worktrees.open = true;
+    try std.testing.expectError(error.Busy, save(&a, &out.writer));
+    a.worktrees.open = false;
+    a.worktrees.busy = true;
+    try std.testing.expectError(error.Busy, save(&a, &out.writer));
+    a.worktrees.busy = false;
     a.query.set(&@as([1025]u8, @splat('x')));
     try std.testing.expectError(error.Busy, save(&a, &out.writer));
 }

@@ -30,6 +30,19 @@ over the last minute to hour, and what each app is using. It works out of the
 box: no helper, no daemon, no admin rights. Its colors are amber, rust, sage,
 slate and violet on warm charcoal or cream, set in Geist and JetBrains Mono.
 
+## Storage & worktrees (v0.1.13)
+
+Overview's **This Mac** card and **Disk** now show volume capacity without a
+new sidebar page. Disk → **Review worktrees…** scans only on request and
+previews stale/missing Git registrations; clearing requires a separate
+per-worktree confirmation and fresh safety checks. Primary, locked, active,
+dirty, ignored-file and unresolved worktrees stay. MCP adds storage capacity
+and read-only `list_worktrees`, never deletion. See [safety, limits and
+previews](docs/storage.md). Available starting with v0.1.13.
+
+Source is pinned to **nanoui 0.14.6**, current main commit
+`579fb4114cd22ae23993d19f477ad2f0d298ef9e`; icons use its explicit square frames.
+
 ## Download
 
 **macOS** (Apple silicon, macOS 13+):
@@ -90,7 +103,8 @@ zig build run --fork=../..
 
 Since v0.1.10, `nanomon mcp` is a headless stdio server using the same
 sampler as the window. Agents can query system stats, filter/sort/paginate
-processes, inspect a PID, and read timestamped history from their session.
+processes, inspect a PID, read timestamped history, and inspect bounded Git
+worktree metadata. `get_system.storage` reports root volume capacity.
 It never opens a window, listens on a port, or allows process control.
 
 Build it with `zig build`, then launch the installed app: the first GUI

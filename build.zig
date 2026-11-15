@@ -58,8 +58,19 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{.{ .name = "nanoui", .module = nanoui }},
     }) });
+    video.root_module.addOptions("nanomon_options", options);
     if (mac) video.root_module.linkFramework("IOKit", .{});
     b.step("video", "Build zig-out/bin/nanomon-video").dependOn(&b.addInstallArtifact(video, .{}).step);
+
+    const storage_preview = b.addExecutable(.{ .name = "nanomon-storage-preview", .root_module = b.createModule(.{
+        .root_source_file = b.path("src/storage_preview_main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "nanoui", .module = nanoui }},
+    }) });
+    storage_preview.root_module.addOptions("nanomon_options", options);
+    if (mac) storage_preview.root_module.linkFramework("IOKit", .{});
+    b.step("storage-preview-bin", "Build synthetic, offscreen storage/worktree previews").dependOn(&b.addInstallArtifact(storage_preview, .{}).step);
 
     const tests = b.addTest(.{ .root_module = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),

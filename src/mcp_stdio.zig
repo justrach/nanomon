@@ -5,6 +5,7 @@ const builtin = @import("builtin");
 const sample = @import("sample.zig");
 const mcp = @import("mcp.zig");
 const tools = @import("mcp_tools.zig");
+extern "c" fn getuid() c_uint;
 
 pub const max_request_bytes = 1 << 20;
 const min_interval = 0.25;
@@ -27,7 +28,28 @@ pub const Provider = struct {
     }
 
     pub fn source(p: *Provider) mcp.Source {
-        return .{ .ptr = p, .sample = query };
+        return .{ .ptr = p, .sample = query, .worktrees = inspectWorktrees };
+    }
+
+    fn inspectWorktrees(ctx: *anyopaque, arena: std.mem.Allocator, days: usize) !@import("worktrees.zig").Snapshot {
+        const p: *Provider = @ptrCast(@alignCast(ctx));
+        const io = p.sampler.io;
+        var pids: std.ArrayList(i32) = .empty;
+        const uid: u32 = if (comptime builtin.os.tag == .windows) 0 else getuid();
+        for (p.sampler.procs.items) |proc| {
+            if (proc.uid != uid) continue;
+            try pids.append(arena, proc.pid);
+            if (pids.items.len == 513) break; // extra item records partial coverage
+        }
+        const paths = try @import("worktree_discovery.zig").paths(arena, io, pids.items);
+        var roots: std.ArrayList([]const u8) = .empty;
+        try roots.appendSlice(arena, paths.roots);
+        try roots.appendSlice(arena, try @import("worktree_discovery.zig").executablePaths(arena, &p.sampler, pids.items));
+        const cwd = std.process.currentPathAlloc(io, arena) catch null;
+        if (cwd) |path| try roots.append(arena, path);
+        var result = try @import("worktrees.zig").scan(arena, io, roots.items, std.Io.Clock.real.now(io).toMilliseconds(), days);
+        result.truncated = result.truncated or paths.incomplete;
+        return result;
     }
 
     fn seconds(p: *Provider) f64 {

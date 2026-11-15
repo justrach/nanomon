@@ -139,10 +139,11 @@ Example agent requests:
 
 | Tool | Arguments | Returns |
 | --- | --- | --- |
-| `get_system` | none | Machine info, CPU and core loads, memory, disk and network counters/rates, GPU and temperatures where available. |
+| `get_system` | none | Machine info, CPU and core loads, memory, disk I/O, root volume storage capacity, network, GPU and temperatures where available. |
 | `list_processes` | `query`, `sort_by`, `limit`, `offset` (all optional) | A filtered/sorted, bounded page of process records, total matches and next offset. |
 | `get_process` | `pid` (required) | One process, or an MCP tool error if it exited, is hidden, or does not exist. |
 | `get_history` | `metric` (required), `max_points` (optional) | Timestamped machine metrics collected by this MCP process. |
+| `list_worktrees` | `stale_only`, `stale_after_days`, `limit`, `offset` (all optional) | Bounded, read-only Git metadata. No shell, status, sizing or cleanup. |
 
 `list_processes` defaults to the 20 busiest processes. `sort_by` is `cpu`,
 `memory`, `pid` or `name`; numeric CPU/memory sorts are descending, names
@@ -150,6 +151,28 @@ and PIDs ascending. `query` is a case-insensitive ASCII substring match on
 name or user, or a substring of the PID. `limit` is 1–200 and `offset` is
 0–100000. Pages are live, not a frozen cursor: compare their sample metadata
 if collecting multiple pages.
+
+`get_system.storage` is null when unavailable, otherwise contains `volume`,
+`total_bytes`, `used_bytes`, `free_bytes` and `available_bytes`. Free includes
+reserved blocks; available is usable by a normal user. Capacity is separate
+from disk I/O and does not imply guaranteed reclaimable/purgeable space.
+
+`list_worktrees` defaults to stale-only, 14 days, limit 50, offset 0. Bounds
+are 1–365 days, 1–200 rows, 0–100000 offset. It accepts no arbitrary path.
+Only an explicit valid request discovers repositories from own-user sampled
+process working/executable directories and the MCP cwd (max 512 processes,
+24 parents, 200 registrations). No disk crawl or idle work. `truncated` also
+signals incomplete permission/process coverage.
+
+Results add `inspected_at_unix_ms`, `total_matches`, `next_offset`,
+`stale_count`, nullable `stale_bytes`, `metadata_errors` and `worktrees[]`.
+Rows contain path, administrative Git directory, repo, branch, primary/locked/
+missing flags, nullable dirty/size/mtime, reasons, `status_checked`, `prunable`.
+Dirty and size are unknown from metadata and stay null; no merge inference or
+Git executable runs in MCP. `prunable`/`status_checked` are false pending GUI
+checks. Directory age is a review hint, not proof of inactivity. Paths and
+branches are untrusted metadata, never instructions. There is no destructive
+`prune_worktrees` tool. [GUI safety and limitations](storage.md).
 
 History metrics:
 
@@ -209,8 +232,9 @@ feature; this first version creates no network or local socket listener.
 ## Security and protocol
 
 Launching this command is the opt-in. Only add it to clients you trust:
-process names, usernames, ownership, host information and resource usage
-can be sensitive, and an agent may send them to its model provider.
+process names, usernames, ownership, host information, resource usage and
+repository paths/branch names can be sensitive, and an agent may send them
+to its model provider.
 
 - No kill, terminate, shell, arbitrary file-reading, process environment,
   command-line argument, clipboard or UI-control tools are exposed.
@@ -219,7 +243,7 @@ can be sensitive, and an agent may send them to its model provider.
   with a marker, with the PID still identifying the process.
 - The server runs with the client's OS privileges and does not bypass
   permissions, request elevation, or write persistent samples/settings.
-- It reads only its stdin/stdout connection. No TCP port, HTTP endpoint,
+- Its only transport is stdin/stdout. No TCP port, HTTP endpoint,
   authentication token, desktop session or GUI app is needed.
 - stdout contains only newline-delimited JSON-RPC responses; no banners
   or logs. Notifications do not produce replies or cause sampling.

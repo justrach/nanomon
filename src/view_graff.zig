@@ -39,7 +39,7 @@ pub fn bubble(c: *ui.Context, a: *App, k: theme.Colors) void {
         g.open = !g.open;
         c.changed = true;
     }
-    ui.icon(c, if (g.open) "xmark" else "sparkles", .{ .size = 18, .weight = .semibold, .color = k.on_picked });
+    ui.icon(c, if (g.open) "xmark" else "sparkles", .{ .size = 18, .frame = 24, .weight = .semibold, .color = k.on_picked });
     if (g.state == .running) c.frameIn(0.25);
 }
 
@@ -91,7 +91,7 @@ fn starter(c: *ui.Context, a: *App, k: theme.Colors, q: []const u8) void {
     const d = ui.div(c).row().wFull().gap(8).itemsCenter().px(10).py(7).rounded(8).bg(k.card).border(k.border).hover(k.control).control();
     defer d.end();
     if (d.clicked()) ask(c, a, q);
-    ui.icon(c, "arrow.right", .{ .size = 10, .color = k.accent });
+    ui.icon(c, "arrow.right", .{ .size = 10, .frame = 14, .color = k.accent });
     ui.text(c, q, .{ .size = 12, .color = k.text });
 }
 
@@ -142,7 +142,7 @@ fn field(c: *ui.Context, a: *App, k: theme.Colors) void {
     const send = ui.div(c).row().w(26).h(26).center().rounded(13).bg(if (q.len > 0) k.accent else k.control).control();
     defer send.end();
     const clicked = send.clicked();
-    ui.icon(c, "arrow.up", .{ .size = 11, .weight = .bold, .color = if (q.len > 0) k.on_picked else k.tertiary });
+    ui.icon(c, "arrow.up", .{ .size = 11, .frame = 16, .weight = .bold, .color = if (q.len > 0) k.on_picked else k.tertiary });
     if ((res.submitted or clicked) and q.len > 0) {
         const asked = c.print("{s}", .{q});
         g.question.set("");

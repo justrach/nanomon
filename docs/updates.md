@@ -23,7 +23,9 @@ Page, graph range, process filters/sort, search and menu-bar choices survive.
 A closed main window stays closed. Process identities, pending signals and
 sample history are **not** persisted; fresh native samples repopulate graphs.
 An automatic restart is deferred during paused monitoring, pending quit
-confirmation/marked processes, agent setup or a running graff request.
+confirmation/marked processes, agent setup, a running graff request, or an
+open worktree review/running cleanup job. Worktree paths, snapshots and cleanup
+intent are never restored across an update.
 Very long searches also defer it so the restore record stays bounded.
 
 The sidebar offers **Check for updates** and **Restart to update**. Explicit

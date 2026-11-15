@@ -1,12 +1,12 @@
 .{
     .name = .nanomon,
-    .version = "0.1.12",
+    .version = "0.1.13",
     .fingerprint = 0xc86a790451c16db9,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .nanoui = .{
-            .url = "git+https://github.com/justrach/nanoui#a3871f920d4d5c08bdd816bd6de7d1a03bd44f32",
-            .hash = "nanoui-0.12.0-we0KMYChJAAV-7uU-xMQhuqP83otyedSmWElTgEoIUW7",
+            .url = "git+https://github.com/justrach/nanoui#579fb4114cd22ae23993d19f477ad2f0d298ef9e",
+            .hash = "nanoui-0.14.6-we0KMYrDQwD3BB0rVUDlHfF-f8b0KuLbhPI6o6yjitIS",
         },
     },
     .paths = .{ "build.zig", "build.zig.zon", "src" },

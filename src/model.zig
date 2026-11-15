@@ -44,6 +44,7 @@ pub const Process = struct {
 pub const Availability = struct { cpu: bool = false, memory: bool = false, disk: bool = false, network: bool = false, gpu: bool = false };
 
 pub const System = struct {
+    storage: ?@import("storage.zig").Volume = null,
     /// Which aggregate sources answered, and which have two valid samples
     /// for their percentages/rates. The UI keeps its existing zero fallback.
     available: Availability = .{},

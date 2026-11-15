@@ -124,6 +124,8 @@ def main():
             message = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25"}}) + "\n"
             reply = run([str(binary), "mcp"], env=env, input=message)
             assert json.loads(reply)["result"]["serverInfo"]["version"] == version
+            if tuple(map(int, version.split("."))) >= (0, 1, 13):
+                run([sys.executable, str(Path(__file__).resolve().parent / "check-mcp-worktrees.py"), "--binary", str(binary)])
             if args.update_check:
                 check_updater(root, args.update_check, version, args.tag)
         print(f"Verified {args.tag}: all archives/checksums, manifest, and native signed/notarized headless bundle on {platform.system()}")

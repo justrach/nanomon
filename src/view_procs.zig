@@ -50,7 +50,7 @@ fn actions(c: *ui.Context, a: *App, k: theme.Colors) void {
     const bar = ui.div(c).row().wFull().h(50).itemsCenter().gap(10).px(16).bg(k.card);
     defer bar.end();
     if (sum.count == 0) {
-        ui.icon(c, "checkmark.circle.fill", .{ .size = 13, .color = k.green });
+        ui.icon(c, "checkmark.circle.fill", .{ .size = 13, .frame = 16, .color = k.green });
         ui.text(c, notice.?, .{ .size = 12, .color = k.text });
         return;
     }
@@ -78,13 +78,13 @@ fn filter(c: *ui.Context, a: *App, k: theme.Colors) void {
     }
     if (it.rect) |r| a.menu_at = .{ r.x, r.y + r.h + 4 };
     ui.text(c, a.filter.title(), .{ .size = 11.5, .color = k.text });
-    ui.icon(c, "chevron.down", .{ .size = 8, .weight = .bold, .color = k.secondary });
+    ui.icon(c, "chevron.down", .{ .size = 8, .frame = 12, .weight = .bold, .color = k.secondary });
 }
 
 pub fn search(c: *ui.Context, a: *App, k: theme.Colors, w: f32) void {
     const f = ui.div(c).row().w(w).h(26).itemsCenter().gap(5).px(8).rounded(8).bg(k.control);
     defer f.end();
-    ui.icon(c, "magnifyingglass", .{ .size = 11, .color = k.secondary });
+    ui.icon(c, "magnifyingglass", .{ .size = 11, .frame = 16, .color = k.secondary });
     if (a.find_search) {
         a.find_search = false;
         c.focus = c.peekId(null);
@@ -100,6 +100,6 @@ fn tool(c: *ui.Context, k: theme.Colors, icon: []const u8, enabled: bool) bool {
     if (enabled) d = d.hover(k.hover) else d = d.opacity(0.35);
     defer d.end();
     const clicked = d.clicked() and enabled;
-    ui.icon(c, icon, .{ .size = 15, .color = k.secondary });
+    ui.icon(c, icon, .{ .size = 15, .frame = 20, .color = k.secondary });
     return clicked;
 }

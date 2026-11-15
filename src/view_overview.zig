@@ -65,7 +65,7 @@ fn tile(c: *ui.Context, k: theme.Colors, icon: []const u8, name: []const u8, col
     {
         const t = kit.title(c, icon, name, color);
         defer t.end();
-        ui.icon(c, "chevron.right", .{ .size = 9, .weight = .semibold, .color = k.tertiary });
+        ui.icon(c, "chevron.right", .{ .size = 9, .frame = 14, .weight = .semibold, .color = k.tertiary });
     }
     {
         const v = ui.div(c).column().gap(1).clip();
@@ -118,4 +118,6 @@ fn machine(c: *ui.Context, a: *App, k: theme.Colors) void {
     kit.line(c, k, "Processes", c.print("{s}", .{model.count(&b, s.procs.items.len)}), null);
     if (sy.threads > 0) kit.line(c, k, "Threads", c.print("{s}", .{model.count(&b, sy.threads)}), null);
     kit.line(c, k, "Thermal", @import("view_cpu.zig").thermalName(sy.thermal), null);
+    @import("view_worktrees.zig").capacity(c, a, k);
+    @import("view_worktrees.zig").row(c, a, k);
 }
