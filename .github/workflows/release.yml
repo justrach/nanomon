@@ -4,7 +4,8 @@
 #
 # Signing and notarization use these repository secrets, the same names as
 # Harness's. With all five, the app and image are signed with a Developer ID
-# and notarized; without them, they are signed ad hoc (Gatekeeper asks once).
+# and notarized. CI can retain locally signed/notarized draft assets instead.
+# Ad-hoc fallback artifacts cannot pass verification or enter the update feed.
 #   MACOS_CERT_P12       base64 of a "Developer ID Application" .p12
 #   MACOS_CERT_PASSWORD  its password
 #   AC_API_KEY_P8        an App Store Connect API key (the .p8's contents)

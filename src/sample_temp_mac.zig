@@ -5,6 +5,7 @@
 //! its hottest; GPU sensors the GPU's, when the chip names any; the rest of
 //! the SoC ("tdev") stands in otherwise.
 const std = @import("std");
+const aggregation = @import("temperature.zig");
 
 extern "c" fn IOHIDEventSystemClientCreate(allocator: ?*anyopaque) ?*anyopaque;
 extern "c" fn IOHIDEventSystemClientSetMatching(client: *anyopaque, matching: *anyopaque) c_int;
@@ -28,13 +29,18 @@ const temperature: i64 = 15;
 const field: i32 = 15 << 16;
 
 /// Degrees Celsius; 0 where nothing was read.
-pub const Temps = struct { cpu: f32 = 0, cpu_max: f32 = 0, gpu: f32 = 0, soc: f32 = 0 };
+pub const Temps = aggregation.Temps;
+pub const Sum = aggregation.Sum;
+pub const Stats = struct { services: usize = 0, events: usize = 0 };
 
 pub const Sensors = struct {
     client: ?*anyopaque = null,
     services: ?*anyopaque = null,
     product: ?*anyopaque = null,
     tried: bool = false,
+    /// False only in the native reference benchmark, never in the GUI or MCP.
+    filter_events: bool = true,
+    last_read: Stats = .{},
 
     pub fn deinit(s: *Sensors) void {
         if (s.services) |o| CFRelease(o);
@@ -66,62 +72,42 @@ pub const Sensors = struct {
         s.product = CFStringCreateWithCString(null, "Product", utf8);
     }
 
-    /// Every sensor now, summed up by part.
+    /// Names are still read afresh; only irrelevant event requests are skipped.
+    /// No cached labels, readings, slower sample cadence or changed averaging.
     pub fn read(s: *Sensors) Temps {
+        s.last_read = .{};
         if (!s.tried) s.open();
         const services = s.services orelse return .{};
         const product = s.product orelse return .{};
-        var sum: Sum = .{};
-        var i: isize = 0;
-        while (i < CFArrayGetCount(services)) : (i += 1) {
-            const svc = CFArrayGetValueAtIndex(services, i);
-            const name_ref = IOHIDServiceClientCopyProperty(svc, product) orelse continue;
-            defer CFRelease(name_ref);
-            var buf: [96]u8 = undefined;
-            if (!CFStringGetCString(name_ref, &buf, buf.len, utf8)) continue;
-            const event = IOHIDServiceClientCopyEvent(svc, temperature, 0, 0) orelse continue;
-            defer CFRelease(event);
-            sum.add(std.mem.sliceTo(&buf, 0), @floatCast(IOHIDEventGetFloatValue(event, field)));
-        }
-        return sum.temps();
+        var reader: Reader = .{ .services = services, .product = product, .stats = &s.last_read };
+        return aggregation.collect(&reader, s.filter_events);
     }
 };
 
-/// Sensors by part, as `read` sorts them (apart, so it's tested).
-pub const Sum = struct {
-    cpu: [2]f32 = .{ 0, 0 },
-    gpu: [2]f32 = .{ 0, 0 },
-    soc: [2]f32 = .{ 0, 0 },
-    hottest: f32 = 0,
+const Reader = struct {
+    services: *anyopaque,
+    product: *anyopaque,
+    stats: *Stats,
 
-    pub fn add(s: *Sum, name: []const u8, c: f32) void {
-        // Readings out of reason are sensors not in use.
-        if (c <= 5 or c >= 130) return;
-        const has = struct {
-            fn f(n: []const u8, part: []const u8) bool {
-                return std.mem.indexOf(u8, n, part) != null;
-            }
-        }.f;
-        if (has(name, "GPU")) {
-            s.gpu[0] += c;
-            s.gpu[1] += 1;
-        } else if (has(name, "tdie") or has(name, "ACC MTR") or has(name, "CPU")) {
-            s.cpu[0] += c;
-            s.cpu[1] += 1;
-            s.hottest = @max(s.hottest, c);
-        } else if (has(name, "tdev") or has(name, "SOC")) {
-            s.soc[0] += c;
-            s.soc[1] += 1;
-        }
+    pub fn len(r: *Reader) usize {
+        r.stats.services = @intCast(CFArrayGetCount(r.services));
+        return r.stats.services;
     }
 
-    pub fn temps(s: Sum) Temps {
-        const mean = struct {
-            fn f(p: [2]f32) f32 {
-                return if (p[1] > 0) p[0] / p[1] else 0;
-            }
-        }.f;
-        return .{ .cpu = mean(s.cpu), .cpu_max = s.hottest, .gpu = mean(s.gpu), .soc = mean(s.soc) };
+    pub fn name(r: *Reader, index: usize, buf: *[96]u8) ?[]const u8 {
+        const svc = CFArrayGetValueAtIndex(r.services, @intCast(index));
+        const property = IOHIDServiceClientCopyProperty(svc, r.product) orelse return null;
+        defer CFRelease(property);
+        if (!CFStringGetCString(property, buf, buf.len, utf8)) return null;
+        return std.mem.sliceTo(buf, 0);
+    }
+
+    pub fn value(r: *Reader, index: usize) ?f32 {
+        r.stats.events += 1;
+        const svc = CFArrayGetValueAtIndex(r.services, @intCast(index));
+        const event = IOHIDServiceClientCopyEvent(svc, temperature, 0, 0) orelse return null;
+        defer CFRelease(event);
+        return @floatCast(IOHIDEventGetFloatValue(event, field));
     }
 };
 

@@ -38,6 +38,19 @@ pub fn build(b: *std.Build) void {
     }) });
     b.step("update-check-bin", "Build the headless update verifier").dependOn(&b.addInstallArtifact(update_check, .{}).step);
 
+    const bench = b.addExecutable(.{ .name = "nanomon-bench", .root_module = b.createModule(.{
+        .root_source_file = b.path("src/bench.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "nanoui", .module = nanoui }},
+    }) });
+    bench.root_module.addOptions("nanomon_options", options);
+    if (mac) bench.root_module.linkFramework("IOKit", .{});
+    b.step("bench-bin", "Build the offscreen real-page benchmark").dependOn(&b.addInstallArtifact(bench, .{}).step);
+    const bench_run = b.addRunArtifact(bench);
+    bench_run.addPassthruArgs();
+    b.step("bench", "Benchmark nanomon pages offscreen (frames repeats)").dependOn(&bench_run.step);
+
     // A video of nanoui, rendered offscreen (src/video.zig).
     const video = b.addExecutable(.{ .name = "nanomon-video", .root_module = b.createModule(.{
         .root_source_file = b.path("src/video.zig"),

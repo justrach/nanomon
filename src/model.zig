@@ -95,6 +95,9 @@ pub const System = struct {
     cpu_temp_max: f32 = 0,
     gpu_temp: f32 = 0,
     soc_temp: f32 = 0,
+    /// GUI temperatures publish independently; Clock.awake seconds, not wall time.
+    temperature_sampled_at: ?f64 = null,
+    temperature_pending: bool = false,
 
     pub fn cpuBusy(s: System) f32 {
         return s.cpu_user + s.cpu_system;
