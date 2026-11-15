@@ -242,6 +242,6 @@ pub fn eligible(e: Entry) bool {
         e.dirty == false and !e.active and e.branch.len > 0 and validOid(e.head) and e.stale();
 }
 pub fn same(a: Entry, b: Entry) bool {
-    return std.mem.eql(u8, a.path, b.path) and std.mem.eql(u8, a.git_dir, b.git_dir) and
+    return a.missing == b.missing and std.mem.eql(u8, a.path, b.path) and std.mem.eql(u8, a.git_dir, b.git_dir) and
         std.mem.eql(u8, a.repo, b.repo) and std.mem.eql(u8, a.head, b.head) and std.mem.eql(u8, a.branch, b.branch);
 }

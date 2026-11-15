@@ -239,6 +239,23 @@ test "native cwd discovery protects only our temporary helper, including a delet
     }
 }
 
+test "registration-only confirmation cannot remove a checkout recreated after preview" {
+    var f = try Fixture.init();
+    defer f.deinit();
+    try f.setup();
+    const a = f.arena.allocator();
+    const path = try f.add("candidate");
+    try f.tmp.dir.deleteTree(io, "candidate");
+    var e = try f.entry(path);
+    checks.probe(a, io, &e, &.{});
+    try expect(e.missing == true and e.prunable);
+    try f.tmp.dir.createDir(io, "candidate", .default_dir);
+    try f.tmp.dir.writeFile(io, .{ .sub_path = "candidate/.git", .data = try std.fmt.allocPrint(a, "gitdir: {s}\n", .{e.git_dir}) });
+    try f.run(path, &.{ "reset", "--hard", "HEAD" });
+    try std.testing.expectError(error.WorktreeChanged, checks.remove(a, io, e, &.{}, f.now, 14));
+    _ = try f.tmp.dir.statFile(io, "candidate/tracked", .{});
+}
+
 test "cached executable directories are copied and protect a running binary's checkout" {
     if (comptime builtin.os.tag != .macos and builtin.os.tag != .linux) return error.SkipZigTest;
     var sampler: @import("sample.zig").Sampler = .{ .gpa = std.testing.allocator, .io = io };
