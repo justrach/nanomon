@@ -57,6 +57,7 @@ pub fn view(a: *App, c: *ui.Context) void {
     sheet.inspector(c, a, k);
     sheet.confirm(c, a, k);
     sheet.confirmMarked(c, a, k);
+    @import("view_worktrees.zig").sheet(c, a, k);
     @import("view_graff.zig").bubble(c, a, k);
     // Icons left for later frames, a few a frame.
     if (a.icons.pending) c.frameIn(1.0 / 60.0);
@@ -91,6 +92,9 @@ fn keys(c: *ui.Context, a: *App) void {
     }
     if (c.shortcut(.{ .key = 'p', .cmd = true, .shift = true })) a.paused = !a.paused;
     if (c.shortcut(.{ .key = S.escape })) {
-        if (a.confirm_marked) a.confirm_marked = false else if (a.graff.open) a.graff.open = false else if (a.confirm != null) a.confirm = null else if (a.inspect != null) a.inspect = null else if (a.menu) a.menu = false else a.selected = null;
+        if (a.worktrees.open and !a.worktrees.busy) {
+            a.worktrees.open = false;
+            a.worktrees.confirm = null;
+        } else if (a.confirm_marked) a.confirm_marked = false else if (a.graff.open) a.graff.open = false else if (a.confirm != null) a.confirm = null else if (a.inspect != null) a.inspect = null else if (a.menu) a.menu = false else a.selected = null;
     }
 }

@@ -15,7 +15,11 @@ pub fn disk(c: *ui.Context, a: *App, k: theme.Colors) void {
     const sy = a.sampler.system;
     var b: [32]u8 = undefined;
     {
-        const h = kit.header(c, k, "Disk", c.print("{s} now", .{model.rate(&b, sy.read_sec + sy.written_sec)}));
+        var sizes: [80]u8 = undefined;
+        const subtitle = if (sy.storage) |v| c.print("{s} now · {s}", .{
+            model.rate(&b, sy.read_sec + sy.written_sec), @import("storage.zig").summary(&sizes, v),
+        }) else c.print("{s} now · capacity unavailable", .{model.rate(&b, sy.read_sec + sy.written_sec)});
+        const h = kit.header(c, k, "Disk", subtitle);
         defer h.end();
         kit.ranges(c, a, k);
     }
@@ -40,6 +44,9 @@ pub fn disk(c: *ui.Context, a: *App, k: theme.Colors) void {
         kit.line(c, k, "Writes out", c.print("{s}", .{model.count(&b2, sy.writes)}), null);
         kit.line(c, k, "Reads in/sec", c.print("{d:.0}", .{sy.reads_sec}), null);
         kit.line(c, k, "Writes out/sec", c.print("{d:.0}", .{sy.writes_sec}), null);
+        @import("view_worktrees.zig").capacity(c, a, k);
+        @import("view_worktrees.zig").row(c, a, k);
+        @import("view_worktrees.zig").button(c, a);
     }
     writers(c, a, k);
 }
@@ -89,6 +96,7 @@ fn writers(c: *ui.Context, a: *App, k: theme.Colors) void {
     }
     var best: [8]model.Process = undefined;
     const n = memory.largest(a, &best, .written);
+    if (n == 0) ui.text(c, "No readable process write counters", .{ .size = 11.5, .color = k.secondary });
     const most: f32 = if (n > 0) @floatFromInt(@max(1, best[0].disk_written)) else 1;
     var b: [32]u8 = undefined;
     for (best[0..n]) |p| {

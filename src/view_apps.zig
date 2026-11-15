@@ -50,7 +50,7 @@ pub fn page(c: *ui.Context, a: *App, k: theme.Colors) void {
             if (d.clicked()) a.sortApps(col.by);
             const on = a.app_sort == col.by;
             ui.text(c, col.title, .{ .size = 11.5, .weight = if (on) .semibold else .regular, .color = if (on) k.text else k.secondary });
-            if (on) ui.icon(c, if (a.app_ascending) "chevron.up" else "chevron.down", .{ .size = 8, .weight = .bold, .color = k.secondary });
+            if (on) ui.icon(c, if (a.app_ascending) "chevron.up" else "chevron.down", .{ .size = 8, .frame = 12, .weight = .bold, .color = k.secondary });
         }
     }
     _ = c.leaf(.{ .width = .fill, .height = .{ .px = 1 }, .background = k.separator }, .none, null);

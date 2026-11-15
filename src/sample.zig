@@ -141,6 +141,7 @@ pub const Sampler = struct {
         const previous = s.system.available;
         s.system.available = .{};
         const ticks = os.collect(s);
+        s.system.storage = @import("storage.zig").read();
         const current = s.system.available;
         s.system.rate_available = .{
             .cpu = s.samples > 0 and previous.cpu and current.cpu,

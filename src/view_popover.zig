@@ -180,7 +180,7 @@ fn processes(c: *ui.Context, a: *App, k: theme.Colors) void {
         const icon = ui.div(c).row().w(18).h(18).center();
         if (a.icons.get(p.bundle)) |png| {
             _ = ui.image(c, .{ .key = p.bundle, .bytes = png, .max_width = 18, .max_height = 18, .radius = 0 });
-        } else ui.icon(c, "terminal", .{ .size = 11, .color = k.secondary });
+        } else ui.icon(c, "terminal", .{ .size = 11, .frame = 16, .color = k.secondary });
         icon.end();
         ui.text(c, p.name, .{ .size = 13, .color = k.text });
         ui.spacer(c);
@@ -240,7 +240,7 @@ fn footer(c: *ui.Context, a: *App, k: theme.Colors) void {
         a.settings_open = !a.settings_open;
         if (a.menubar) |m| m.fit();
     }
-    ui.icon(c, if (a.settings_open) "xmark" else "gearshape", .{ .size = 14, .color = if (a.settings_open) k.accent else k.secondary });
+    ui.icon(c, if (a.settings_open) "xmark" else "gearshape", .{ .size = 14, .frame = 18, .color = if (a.settings_open) k.accent else k.secondary });
 }
 
 /// What the menu bar shows, and Quit.
@@ -265,7 +265,7 @@ fn settings(c: *ui.Context, a: *App, k: theme.Colors) void {
     const q = ui.div(c).row().wFull().px(12).py(7).rounded(8).bg(k.control).hover(k.hover).control();
     defer q.end();
     if (q.clicked()) if (a.nanoapp) |app| app.quit();
-    ui.icon(c, "power", .{ .size = 12, .color = k.system });
+    ui.icon(c, "power", .{ .size = 12, .frame = 18, .color = k.system });
     const gap = ui.div(c).w(8);
     gap.end();
     ui.text(c, "Quit nanomon", .{ .size = 13, .color = k.text });

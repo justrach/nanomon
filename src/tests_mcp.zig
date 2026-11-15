@@ -114,7 +114,7 @@ test "MCP initialization, negotiation, catalog and ping need no samples" {
     }
     const list = try request(&s, a, "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}");
     const catalog = field(field(list, "result"), "tools").array.items;
-    try equal(4, catalog.len);
+    try equal(5, catalog.len);
     for (catalog) |t| {
         try expect(field(field(t, "annotations"), "readOnlyHint").bool);
         try expect(!field(field(t, "inputSchema"), "additionalProperties").bool);

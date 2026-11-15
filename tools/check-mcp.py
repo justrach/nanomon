@@ -67,13 +67,23 @@ def main():
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         catalog = request(2, "tools/list")["tools"]
         assert {t["name"] for t in catalog} == {
-            "get_system", "list_processes", "get_process", "get_history",
+            "get_system", "list_processes", "get_process", "get_history", "list_worktrees",
         }
         assert all(t["annotations"]["readOnlyHint"] for t in catalog)
         system = tool(3, "get_system", {})
         assert system["meta"]["sample_count"] == 2
         assert system["meta"]["interval_seconds"] >= 0.25
         assert system["memory"]["total_bytes"] > 0
+        try:
+            native = os.statvfs("/")
+        except OSError:
+            native = None
+        if native is not None:
+            capacity = system["storage"]
+            assert capacity is not None, "OS capacity succeeded but nanomon reported unknown"
+            assert capacity["total_bytes"] == native.f_frsize * native.f_blocks
+            assert capacity["used_bytes"] + capacity["free_bytes"] == capacity["total_bytes"]
+            assert 0 <= capacity["available_bytes"] <= capacity["free_bytes"]
         assert 0 <= system["cpu"]["busy_percent"] <= 100.01
         processes = tool(4, "list_processes", {"query": "nanomon", "limit": 10})
         server = next(p for p in processes["processes"] if p["pid"] == process.pid)

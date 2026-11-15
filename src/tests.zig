@@ -25,6 +25,10 @@ test {
     _ = @import("tests_select.zig");
     _ = @import("tests_menubar.zig");
     _ = @import("tests_mcp.zig");
+    _ = @import("tests_mcp_worktrees.zig");
+    _ = @import("tests_worktrees.zig");
+    _ = @import("tests_storage_ui.zig");
+    _ = @import("tests_worktree_worker.zig");
     _ = @import("tests_mcp_setup.zig");
     _ = @import("updates.zig");
     _ = @import("tests_top_processes.zig");

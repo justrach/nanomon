@@ -60,7 +60,7 @@ pub fn table(c: *ui.Context, a: *App, k: theme.Colors) void {
             if (d.clicked()) a.sortBy(col.key);
             const on = a.sort == col.key;
             ui.text(c, col.title, .{ .size = 11.5, .weight = if (on) .semibold else .regular, .color = if (on) k.text else k.secondary });
-            if (on) ui.icon(c, if (a.ascending) "chevron.up" else "chevron.down", .{ .size = 8, .weight = .bold, .color = k.secondary });
+            if (on) ui.icon(c, if (a.ascending) "chevron.up" else "chevron.down", .{ .size = 8, .frame = 12, .weight = .bold, .color = k.secondary });
         }
     }
     _ = c.leaf(.{ .width = .fill, .height = .{ .px = 1 }, .background = k.separator }, .none, null);
@@ -150,7 +150,7 @@ pub fn check(c: *ui.Context, k: theme.Colors, key: []const u8, state: Mark, on_s
     const box = ui.div(c).row().w(14).h(14).center().rounded(4).bg(if (filled) k.accent else k.page.alpha(0)).border(if (filled) k.accent else if (on_selection) k.text.alpha(0.4) else k.tertiary);
     defer box.end();
     switch (state) {
-        .all => ui.icon(c, "checkmark", .{ .size = 8.5, .weight = .bold, .color = k.on_picked }),
+        .all => ui.icon(c, "checkmark", .{ .size = 8.5, .frame = 12, .weight = .bold, .color = k.on_picked }),
         .some => _ = c.leaf(.{ .width = .{ .px = 7 }, .height = .{ .px = 2 }, .radius = 1, .background = k.on_picked }, .none, null),
         .none => {},
     }

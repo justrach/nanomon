@@ -34,7 +34,9 @@ pub fn card(c: *ui.Context, k: theme.Colors) ui.Div {
 pub fn chip(c: *ui.Context, icon: []const u8, color: ui.Color, size: f32, solid: bool) void {
     const d = ui.div(c).row().w(size).h(size).center().rounded(size * 0.28).bg(if (solid) color else color.alpha(0.16));
     defer d.end();
-    ui.icon(c, icon, .{ .size = size * 0.58, .weight = .semibold, .color = if (solid) .white else color });
+    c.node(d.index).style.min_width = size;
+    c.node(d.index).style.min_height = size;
+    ui.icon(c, icon, .{ .size = size * 0.58, .frame = size, .weight = .semibold, .color = if (solid) .white else color });
 }
 
 /// A card's title row: its chip and name; add more, then `end`.
@@ -117,12 +119,12 @@ pub fn ranges(c: *ui.Context, a: *App, k: theme.Colors) void {
     const all = [_]app_mod.Range{ .m1, .m5, .m15, .h1 };
     var names: [all.len][]const u8 = undefined;
     for (all, 0..) |r, i| names[i] = r.title();
-    if (segmented(c, k, &names, @intFromEnum(a.range))) |i| a.range = all[i];
+    if (segmented(c, k, &names, @backingInt(a.range))) |i| a.range = all[i];
     ui.key(c, "pause");
     const d = ui.div(c).row().w(30).h(26).center().rounded(8).bg(k.control).hover(k.hover).control();
     defer d.end();
     if (d.clicked()) a.paused = !a.paused;
-    ui.icon(c, if (a.paused) "play.fill" else "pause.fill", .{ .size = 10, .color = if (a.paused) k.accent else k.secondary });
+    ui.icon(c, if (a.paused) "play.fill" else "pause.fill", .{ .size = 10, .frame = 16, .color = if (a.paused) k.accent else k.secondary });
 }
 
 pub const Series = struct { values: []const f32, color: ui.Color };

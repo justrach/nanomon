@@ -34,6 +34,8 @@ jobs:
       - run: zig build -Doptimize=ReleaseSafe
       - name: Headless MCP over real stdio (no display)
         run: python3 tools/check-mcp.py
+      - name: Real worktree MCP in a temporary PID/mount namespace
+        run: python3 tools/check-mcp-worktrees.py --linux-namespace
       - name: Agent registration with temporary homes and fake clients
         run: python3 tools/check-mcp-setup.py
       - name: Update manifest preserves all platforms
@@ -50,6 +52,9 @@ jobs:
       - run: zig build -Doptimize=ReleaseSafe
       - name: Headless MCP over real stdio (no AppKit app)
         run: python3 tools/check-mcp.py
+      - name: Real worktree MCP with personal Git metadata sandboxed out
+        run: python3 tools/check-mcp-worktrees.py
+      - run: zig build storage-preview-bin -Doptimize=ReleaseFast
       - name: Agent registration with temporary homes and fake clients
         run: python3 tools/check-mcp-setup.py
       - name: Update manifest preserves all platforms

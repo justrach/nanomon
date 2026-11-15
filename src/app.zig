@@ -94,6 +94,7 @@ pub const App = struct {
     sampler: sample.Sampler,
     icons: icons.Icons,
     top_processes: @import("top_processes.zig").Cache = .{},
+    worktrees: @import("worktree_worker.zig").Manager = .{},
     /// Samples by itself (tests fill it instead).
     live: bool = true,
     last: f64 = -1e9,
@@ -173,6 +174,7 @@ pub const App = struct {
         a.sampler.on_temperature_update = .{ .ctx = a, .func = temperaturesAnswered };
         a.graff.notify = .{ .ctx = a, .func = graffAnswered };
         a.agents.notify = .{ .ctx = a, .func = graffAnswered };
+        a.worktrees.notify = .{ .ctx = a, .func = graffAnswered };
     }
 
     /// Opens the window (again, once closed: nanomon stays in the menu bar).
@@ -201,6 +203,8 @@ pub const App = struct {
     fn windowClosed(ctx: *anyopaque, _: *nanoui.Window) void {
         const a: *App = @ptrCast(@alignCast(ctx));
         a.window = null;
+        a.worktrees.open = false;
+        a.worktrees.confirm = null;
     }
 
     /// The menu bar panel's height for what it shows.
@@ -236,6 +240,7 @@ pub const App = struct {
     }
 
     pub fn deinit(a: *App) void {
+        a.worktrees.deinit();
         a.rows.deinit(a.sampler.gpa);
         a.apps.deinit(a.sampler.gpa);
         a.marked.deinit(a.sampler.gpa);

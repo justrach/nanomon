@@ -34,7 +34,7 @@ pub fn menu(c: *ui.Context, a: *App, k: theme.Colors) void {
         if (it.clicked) a.setFilter(f);
         const color = if (it.hovered) k.on_selection else k.text;
         const mark = ui.div(c).row().w(12).center();
-        if (a.filter == f) ui.icon(c, "checkmark", .{ .size = 10, .weight = .bold, .color = color });
+        if (a.filter == f) ui.icon(c, "checkmark", .{ .size = 10, .frame = 12, .weight = .bold, .color = color });
         mark.end();
         ui.text(c, f.title(), .{ .size = 13, .color = color });
     }
@@ -46,7 +46,7 @@ fn bigIcon(c: *ui.Context, a: *App, p: model.Process, size: f32) void {
     defer box.end();
     if (a.icons.get(p.bundle)) |png| {
         _ = ui.image(c, .{ .key = p.bundle, .bytes = png, .max_width = size, .max_height = size, .radius = 0 });
-    } else ui.icon(c, "terminal", .{ .size = size * 0.6, .color = c.theme.muted });
+    } else ui.icon(c, "terminal", .{ .size = size * 0.6, .frame = size, .color = c.theme.muted });
 }
 
 pub fn inspector(c: *ui.Context, a: *App, k: theme.Colors) void {
