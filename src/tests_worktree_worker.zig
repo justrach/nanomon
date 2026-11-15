@@ -6,6 +6,13 @@ const App = @import("app.zig").App;
 const Manager = @import("worktree_worker.zig").Manager;
 const io = std.testing.io;
 
+fn initRepo(path: []const u8) !void {
+    const r = try @import("worktree_git.zig").git(std.testing.allocator, io, path, &.{ "init", "-b", "main" });
+    defer std.testing.allocator.free(r.stdout);
+    defer std.testing.allocator.free(r.stderr);
+    if (r.term != .exited or r.term.exited != 0) return error.FixtureGitFailed;
+}
+
 test "worktree worker is explicit, coalesces busy requests, and publishes a whole result" {
     if (comptime builtin.os.tag != .macos and builtin.os.tag != .linux) return error.SkipZigTest;
     var tmp = std.testing.tmpDir(.{});
@@ -16,6 +23,7 @@ test "worktree worker is explicit, coalesces busy requests, and publishes a whol
     try std.testing.expect(a.worktrees.thread == null and a.worktrees.latest == null);
     var path: [4096]u8 = undefined;
     const n = try tmp.dir.realPath(io, &path);
+    try initRepo(path[0..n]);
     a.worktrees.gpa = std.testing.allocator;
     a.worktrees.selected_repo = try std.testing.allocator.dupe(u8, path[0..n]);
     a.worktrees.start(&a, null);
@@ -31,7 +39,9 @@ test "worktree worker is explicit, coalesces busy requests, and publishes a whol
     }
     a.worktrees.take();
     try std.testing.expect(!a.worktrees.busy and a.worktrees.thread == null);
-    try std.testing.expectEqual(@as(usize, 0), a.worktrees.latest.?.snapshot.entries.len);
+    try std.testing.expectEqual(@as(usize, 1), a.worktrees.latest.?.snapshot.entries.len);
+    try std.testing.expect(a.worktrees.latest.?.snapshot.entries[0].is_primary);
+    try std.testing.expectEqualStrings(a.worktrees.selected_repo.?, a.worktrees.latest.?.snapshot.entries[0].path);
     try std.testing.expect(a.worktrees.request == null and a.worktrees.slot == null);
 }
 
@@ -44,6 +54,7 @@ test "teardown cancels pending pipe wake and joins before releasing request and 
     a.live = false;
     var path: [4096]u8 = undefined;
     const n = try tmp.dir.realPath(io, &path);
+    try initRepo(path[0..n]);
     a.worktrees.gpa = std.testing.allocator;
     a.worktrees.selected_repo = try std.testing.allocator.dupe(u8, path[0..n]);
     a.worktrees.start(&a, null);
