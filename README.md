@@ -10,7 +10,7 @@
 
 <p align="center">
   <img alt="macOS · Linux" src="https://img.shields.io/badge/macOS%20·%20Linux-555">
-  <img alt="One binary, under 1 MB" src="https://img.shields.io/badge/one%20binary-%3C1%20MB-44cc11">
+  <img alt="One native binary" src="https://img.shields.io/badge/one%20binary-native-44cc11">
   <img alt="No admin rights" src="https://img.shields.io/badge/admin%20rights-none-44cc11">
   <img alt="Built in Zig 0.17" src="https://img.shields.io/badge/built%20in-Zig%200.17-f7a41d?logo=zig&logoColor=white">
   <img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue">
